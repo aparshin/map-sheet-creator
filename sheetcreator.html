@@ -5,11 +5,16 @@
 
         <script type="text/javascript">
             //alert(window.location.host);
-            document.write([
-              '<script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=', {
+            var mapKeysHash = {
                 'localhost':        'ABQIAAAAxeQCb3wu6PA7zVxqnImk_xT2yXp_ZAY8_ufC3CFXhHIE1NvwkxQn9kLh0Gl1Lf7PiyDLsthpK7Pctg',
                 'parshin.tmweb.ru': 'ABQIAAAAxeQCb3wu6PA7zVxqnImk_xQfbKUljRK_208NZ6QVgd1EVBmc4hQ7TvqOwd7Nvp6as0YdevNyKEXBFg'
-              }[window.location.host],
+              };
+            var mapKey = mapKeysHash[window.location.host];
+            if ( !mapKey ) 
+                alert("Unknown host: " + window.location.host);
+                
+            document.write([
+              '<script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=', mapKey,
               '&amp;sensor=false&amp;hl=ru" type="text/javascript"><\/script>'
             ].join(''));
         </script>
@@ -99,8 +104,8 @@
             </div>
             <div id="sheetOptionsWidgetContainer">
                 <form>
-                    <input id="sow_albom" type="radio" name="orientation" value="Albom" checked>Albom<br/>
-                    <input id="sow_portr" type="radio" name="orientation" value="Portrait">Portrait<br/>
+                    <input id="sow_albom" type="radio" name="orientation" value="Albom">Albom<br/>
+                    <input id="sow_portr" type="radio" name="orientation" value="Portrait" checked>Portrait<br/>
                     <p>Size preset:
                         <select id = "sow_size_preset" name="size_preset">
                             <option value="A4">A4</option>
