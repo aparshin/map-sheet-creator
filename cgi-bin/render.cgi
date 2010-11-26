@@ -1,13 +1,31 @@
 #!/usr/bin/perl -wT -I ../../thirdparty/perl
 
+# Combines tiles into single picture and saves it to disk (as 8-bit PNG). Map file for OziExplorer is also constructed.
+# Input parameters:
+# * minx, miny, maxx, maxy - coordinates of area in composition (pixels)
+# * zoom level, which should be used for compining (for example, 13, 14, ...)
+# * lenx, leny - phisical length of composed picture after printing (cantimeters). Used to set dpi
+# * ne, nw, se, sw - 2-element arrays of corners coordinates (lat, lon)
+#
+# Output:
+# JSON with following fields:
+#  * pic_filename - local name of generated picture (no folder or hostname, for example: sheet_0.png)
+#  * map_filename - local name of generated map file
+#  *[optional] debug - Any debug information
+#
+# Files (both picture and map) will be generated in folder '../sheets'
+# Supports, that maps are in folders '../../maps/slazav/' and '../../maps/arbalet/'
+
 use strict;
 use CGI ':standard';
 use CGI::Carp qw ( fatalsToBrowser ); 
 use Image::Magick;
 use JSON;
+use POSIX;
 
-use constant TILE_SIZE => 256;
-use constant TILE_FOLDERS => {slazav => '../../maps/slazav/', arbalet => '../../maps/arbalet/'};
+use constant TILE_SIZE     => 256;
+use constant TILE_FOLDERS  => {slazav => '../../maps/slazav/', arbalet => '../../maps/arbalet/'};
+use constant TARGET_FOLDER => '../sheets';
     
 my $query = new CGI;
 $query->charset('utf-8');
@@ -48,7 +66,7 @@ print $query->header;
 my $w = $maxx - $minx +1;
 my $h = $maxy - $miny +1;
 my $size = "${w}x${h}";
-my $density =  int($w/$lenx) . "x" . int($h/$leny);
+my $density =  ceil($w/$lenx) . "x" . ceil($h/$leny);
 
 my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density);
 $image->ReadImage('xc:transparent');
@@ -60,7 +78,6 @@ for my $x ($tileminx..$tilemaxx)
         for my $curMapname (@maps)
         {
             my $tileFilename = getTileFilename( $curMapname, $x, $y, $zoom );
-            # print TILE_FOLDERS->{$maps[0]} . "<->" . $tileFilename . ' ||| ';
             next unless -e $tileFilename;
             
             my $curImage = new Image::Magick; 
@@ -94,27 +111,27 @@ for my $x ($tileminx..$tilemaxx)
 }
 
 my $prefix = 0;
-while ( -e "../sheets/sheet_${prefix}.png" ) {$prefix++;};
+while ( -e TARGET_FOLDER."/sheet_${prefix}.png" ) {$prefix++;};
 my $filename = "sheet_${prefix}.png";
-my $res = $image->Write("png8:../sheets/$filename");
+my $res = $image->Write("png8:".TARGET_FOLDER."/$filename");
 die "$res" if "$res";
 
 (my $mapFilename = $filename) =~ s/\.png$/.map/;
 my $MAPFILE;
-open $MAPFILE, ">:crlf", "../sheets/$mapFilename";
+open $MAPFILE, ">:crlf", TARGET_FOLDER."/$mapFilename";
 printMapFile(\@nwPoint, \@nePoint, \@sePoint, \@swPoint, $filename, $w, $h, int($w/$lenx), $MAPFILE);
 close $MAPFILE;
 
 my $res;
 $res->{map_filename} = "sheet_${prefix}.map";
 $res->{pic_filename} = "sheet_${prefix}.png";
+# $res->{debug} = "$density $lenx $leny" . $w/$lenx . " " . $h/$leny;
 # print "sheet_${prefix}.png";
 print to_json( $res );
 
 sub getTileFilename
 {
     my ($mapname, $x, $y, $z) = @_;
-    # return TILE_FOLDER . "Z${z}/${y}_${x}.png";
     return TILE_FOLDERS->{$mapname} . "Z${z}/${y}_${x}.png";
 }
 

@@ -3,6 +3,7 @@
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
         <title>Map Sheets Composer</title>
 
+        <!--
         <script type="text/javascript">
             //alert(window.location.host);
             var mapKeysHash = {
@@ -19,19 +20,21 @@
               '&amp;sensor=false&amp;hl=ru" type="text/javascript"><\/script>'
             ].join(''));
         </script>
-
+        
         <script type="text/javascript" src="/thirdparty/js/arbalet.js"    ></script>
         <script type="text/javascript" src="/thirdparty/js/slazav_map.js" ></script>
-        <script type="text/javascript" src="js/main.js" ></script>
         <script type="text/javascript" src="js/map_layers.js" ></script>
+        -->
+        <script type="text/javascript" src="js/main.js" ></script>
 
         <link type="text/css" href="css/no-theme/jquery-ui-1.8.5.custom.css" rel="stylesheet" />	
 		<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
 		<script type="text/javascript" src="js/jquery-ui-1.8.5.custom.min.js"></script>
+        <script src='/thirdparty/js/OpenLayers.js'></script>
 
         <style>
-            #renderWidget { border: 4px solid blue; width: 200px; height: 100px; padding: 0.5em; position: absolute; left: 0; top: 300;}
-            #sheetOptionsWidgetContainer { border: 4px solid red; padding: 0.5em; position: absolute; left: 500; top: 0; background-color: white}
+            #renderWidget { border: 4px solid blue; width: 200px; height: 100px; padding: 0.5em; position: absolute; left: 0; top: 300; z-index: 2500}
+            #sheetOptionsWidgetContainer { border: 4px solid red; padding: 0.5em; position: absolute; left: 500; top: 0; background-color: white; z-index: 2500}
             #mapLayoutWidgetContainer { border: 4px solid blue; padding: 0.5em; position: absolute; left: 800; top: 0; background-color: white}
             .sheet { border: solid; padding: 0; position: absolute }
             #available_maps,#maps_layout { list-style-type: none; margin: 0; padding: 0;}
@@ -39,7 +42,7 @@
         
         <script type="text/javascript">
             $(function() {
-                $( "#renderWidget" ).draggable({containment: '#map_canvas'});
+                $( "#renderWidget" ).draggable({containment: '#map_canvas', zIndex: 2700});
             });
         </script>
 
@@ -49,28 +52,74 @@
             var gSheetController = {};
             var gMapLayoutWidget = {};
             
-            function initialize()
-            {
-                if (!GBrowserIsCompatible())
-                {
-                    alert("Your brouser doesn't suppport Google Maps");
-                    return;
+            var MAP_HOST_NAME = 'http://188.127.225.240';
+            
+            function get_my_url (bounds) {
+                var res = this.map.getResolution();
+                var x = Math.round ((bounds.left - this.maxExtent.left) / (res * this.tileSize.w));
+                var y = Math.round ((this.maxExtent.top - bounds.top) / (res * this.tileSize.h));
+                
+                var z = this.map.getZoom();
+
+                var path = "Z" + z + "/" + y + "_" + x + ".png";
+                var url = this.url;
+                if (url instanceof Array) {
+                    url = this.selectUrl(path, url);
                 }
                 
-                map = new GMap2( document.getElementById("map_canvas") );
-                map.setCenter(new GLatLng(55.78, 37.98), 8);
+                return url + path;
+            }
+            
+            function initialize()
+            {                
+                //map = new GMap2( document.getElementById("map_canvas") );
+                //map.setCenter(new GLatLng(55.78, 37.98), 8);
                 
-                var slazavMap  = new GMapType([gTiles.getLocalArbaletTile(), gTiles.getSlazavTile()],          new GMercatorProjection(22), 'Slazav',  { textColor:'black' });
-                var arbaletMap = new GMapType([G_NORMAL_MAP.getTileLayers()[0], gTiles.getOuterArbaletTile()], new GMercatorProjection(22), 'Arbalet', { textColor:'black' });
+                var slazavLayer = new OpenLayers.Layer.TMS("Slazav",
+                           MAP_HOST_NAME + "/maps/slazav/",
+                           { 'type':'png', 'getURL':get_my_url, transparent: 'true' });
+                           
+                var arbaletLayer = new OpenLayers.Layer.TMS("Arbalet",
+                           MAP_HOST_NAME + "/maps/arbalet/",
+                           { 'type':'png', 'getURL':get_my_url, transparent: 'true' });
                 
-                map.removeMapType(G_NORMAL_MAP); 
-                map.removeMapType(G_SATELLITE_MAP);
-                map.removeMapType(G_HYBRID_MAP);
+                var osmLayer = new OpenLayers.Layer.OSM();
                 
-                map.addMapType(slazavMap);
-                map.addMapType(arbaletMap);                    
-                map.setUIToDefault();
-                map.setMapType(slazavMap);
+                //var polygonLayer = new OpenLayers.Layer.Vector("Polygon Layer");
+                
+                
+                map = new OpenLayers.Map("map_canvas", {
+                    maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
+                    numZoomLevels:18,
+                    maxResolution:156543.0339,
+                    units:'m',
+                    projection: "EPSG:900913",
+                    displayProjection: new OpenLayers.Projection("EPSG:4326"),
+                    allOverlays: true
+                });
+                
+                map.addLayers([osmLayer, arbaletLayer, slazavLayer]);
+            
+                map.addControl( new OpenLayers.Control.LayerSwitcher() );
+                
+                var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
+                map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
+                
+                //var dragControl = new OpenLayers.Control.DragFeature(polygonLayer);
+                //map.addControl( dragControl );
+                //dragControl.activate();
+                
+                //var slazavMap  = new GMapType([gTiles.getLocalArbaletTile(), gTiles.getSlazavTile()],          new GMercatorProjection(22), 'Slazav',  { textColor:'black' });
+                //var arbaletMap = new GMapType([G_NORMAL_MAP.getTileLayers()[0], gTiles.getOuterArbaletTile()], new GMercatorProjection(22), 'Arbalet', { textColor:'black' });
+                
+                //map.removeMapType(G_NORMAL_MAP); 
+                //map.removeMapType(G_SATELLITE_MAP);
+                //map.removeMapType(G_HYBRID_MAP);
+                
+                //map.addMapType(slazavMap);
+                //map.addMapType(arbaletMap);                    
+                //map.setUIToDefault();
+                //map.setMapType(slazavMap);
                 
                 var curLogger = new DivLogger();
                 //var curLogger = new NullLogger();
@@ -91,6 +140,8 @@
                     $('#download_link').html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
                                        .append($('<br/>'))
                                        .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
+                    
+                    if (data.debug) alert(data.debug);
                 });
             }
         </script>

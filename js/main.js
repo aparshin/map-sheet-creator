@@ -1,13 +1,86 @@
 ///////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// Map Manager ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+MapManager = function(map, style)
+{
+    this.getMap = function() { return m_map; };
+    
+    this.lonlat2Map = function( lonlat )
+    {
+       return lonlat.clone().transform( m_lonlatProjection, m_map.getProjectionObject() );
+    }
+    
+    this.map2lonlat = function( lonlatMapProj )
+    {
+       return lonlatMapProj.clone().transform( m_map.getProjectionObject(), m_lonlatProjection );        
+    }
+    
+    this.lonlat2pixel = function( lonlat, zoom )
+    {
+        var lonlatMapProj = this.lonlat2Map(lonlat);
+        var resolution = map.getResolutionForZoom( zoom );
+        
+        return {
+            x: Math.floor ((lonlatMapProj.lon - map.maxExtent.left) / resolution),
+            y: Math.floor ((map.maxExtent.top - lonlatMapProj.lat) / resolution)
+        }
+    }
+    
+    this.pixel2lonlat = function( pixel, zoom )
+    {
+        //var lonlatMapProj = this.lonlat2Map(lonlat);
+        var resolution = map.getResolutionForZoom( zoom );
+        
+        var lon = pixel.x*resolution + map.maxExtent.left;
+        var lat = map.maxExtent.top - pixel.y*resolution;
+        
+        return this.map2lonlat( new OpenLayers.LonLat( lon, lat ) );
+    }
+    
+    
+    this.setDragCompleteCallback = function( callback )
+    {
+        m_dragControl.onComplete = callback;
+    }
+    
+    this.addLonlatBounds = function( bounds, style )
+    {
+        if (m_curFeature) m_polygonLayer.removeFeatures([m_curFeature]);
+        m_curFeature = new OpenLayers.Feature.Vector(this.lonlat2Map(bounds).toGeometry(), {}, m_style);
+        m_polygonLayer.addFeatures([m_curFeature]);
+    }
+    
+    var m_map = map;
+    var m_style = style;
+        
+    var m_polygonLayer = new OpenLayers.Layer.Vector("Polygon Layer");
+    map.addLayers([m_polygonLayer]);
+    
+    var m_dragControl = new OpenLayers.Control.DragFeature(m_polygonLayer);
+    map.addControl( m_dragControl );
+    m_dragControl.activate();    
+    
+    var m_lonlatProjection = new OpenLayers.Projection("EPSG:4326");
+    var m_curFeature = null;
+    
+}
+
+///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// MapSheetRectangle ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 //Trigger events: move(any changes of position or sizes)
-
-MapSheetRectangle = function(map, center, borderColor, borderWidth, opacity, logger)
+/**
+* map: OpenLayers.Map
+* vectorLayer: OpenLayers.Layer.Vector
+* center: OpenLayers.LonLat
+*/
+MapSheetRectangle = function(mapManager, center, logger)
 {
+    //Updates coordinates of rectangle corners using center coordinates and size of rectangle (meters)
     var updateCornersFromCenter = function()
     {
-        var getDeltaLatLng = function(srcLatLng, distX, distY, outDelta)
+        //TODO: OpenLayers.Util.destinationVincenty can be used here
+        var getDeltaLatLng = function(srcLat, distX, distY, outDelta)
         {
             var R = 6378137; //earth radius, meters
             outDelta.dLat = distY/R;
@@ -15,7 +88,7 @@ MapSheetRectangle = function(map, center, borderColor, borderWidth, opacity, log
             var tan2 = Math.tan(distX/R);
             tan2 *= tan2;
             var a = tan2/(1+tan2);
-            var cos2 = Math.cos(srcLatLng.lat()/180*Math.PI);
+            var cos2 = Math.cos(srcLat/180*Math.PI);
             cos2 *= cos2;
             outDelta.dLng = Math.asin(Math.sqrt(a/cos2));
             
@@ -24,28 +97,21 @@ MapSheetRectangle = function(map, center, borderColor, borderWidth, opacity, log
         }
         
         var delta = {};
-        getDeltaLatLng( m_center, m_lengthX/2, m_lengthY/2, delta );
-        m_ne = new GLatLng( m_center.lat() + delta.dLat, m_center.lng() + delta.dLng );
-        m_sw = new GLatLng( m_center.lat() - delta.dLat, m_center.lng() - delta.dLng );
+        getDeltaLatLng( m_center.lat, m_lengthX/2, m_lengthY/2, delta );
+        m_ne = new OpenLayers.LonLat( m_center.lon + delta.dLng, m_center.lat + delta.dLat );
+        m_sw = new OpenLayers.LonLat( m_center.lon - delta.dLng, m_center.lat - delta.dLat );
     }
     
-    //supposes that lat and lng of the rectangle didn't change
+    //supposes that lat and lon of the rectangle didn't change
     this.redraw = function()
     {
         if (!m_ne || !m_sw) return;
         
-        var pixelNE = m_map.fromLatLngToContainerPixel(m_ne);
-        var pixelSW = m_map.fromLatLngToContainerPixel(m_sw);
-        m_div.style.display = 'block';
-        m_div.style.left = pixelSW.x + 'px';
-        m_div.style.top  = pixelNE.y + 'px';
-        m_div.style.width  = (pixelNE.x - pixelSW.x - 2*m_borderWidth) + 'px';
-        m_div.style.height = (pixelSW.y - pixelNE.y - 2*m_borderWidth) + 'px';
-        // m_div.style.opacity = m_opacity;
-        $(m_div).css({opacity: m_opacity});
-        m_div.style.borderColor = m_borderColor;
-        m_div.style.borderWidth = m_borderWidth + 'px';
-        // m_logger.message( "W: " + m_div.style.width + "; H: " + m_div.style.height );
+        var lonlatProjection = new OpenLayers.Projection("EPSG:4326");
+        var rectangleBounds = new OpenLayers.Bounds();
+        rectangleBounds.extend( m_ne );
+        rectangleBounds.extend( m_sw );
+        m_mapManager.addLonlatBounds(rectangleBounds);
     }
     
     this.setSize = function(sizeX, sizeY)
@@ -58,41 +124,31 @@ MapSheetRectangle = function(map, center, borderColor, borderWidth, opacity, log
         $(m_this).trigger('move');
     }
     
-    this.getNE = function(){ return m_ne; };
-    this.getSW = function(){ return m_sw; };
+    this.getNE = function(){ return m_ne.clone(); };
+    this.getSW = function(){ return m_sw.clone(); };
     
-    var DIV_CLASS = "sheet";
-    var DIV_CONTAINER_ID = "sheet_container";
-
+    var m_mapManager = mapManager;
     var m_this = this;
     var m_logger = logger;
     var m_map = map;
-    var m_borderColor = borderColor;
-    var m_borderWidth = borderWidth;
-    var m_opacity = opacity;
     var m_center = center;
     var m_lengthX = 0;
     var m_lengthY = 0;
     var m_ne = {};
     var m_sw = {};
     
-    var m_div = $('<div></div>').addClass('ui-widget-content').addClass(DIV_CLASS).draggable().css({position:'absolute', display: 'none'}).get(0);
-    $('#'+DIV_CONTAINER_ID).append(m_div);
-
-    $(m_div).bind('dragstop', function(event, ui) {
-        var left   = parseInt(this.style.left.slice(0, this.style.left.length - 2));
-        var width  = parseInt(this.style.width.slice(0, this.style.width.length - 2)) + 2*m_borderWidth;
-        var top    = parseInt(this.style.top.slice(0, this.style.top.length - 2));
-        var height = parseInt(this.style.height.slice(0, this.style.height.length - 2)) + 2*m_borderWidth;
+    m_mapManager.setDragCompleteCallback( function(feature, point)
+    {
+        //invariant of rectangle is its center and length (in meters). 
+        //So, calculate center and fit size of rectangle on screen
+        var centerMapProj = feature.geometry.getBounds().getCenterLonLat();
+        m_center = m_mapManager.map2lonlat(centerMapProj);
         
-        m_center = m_map.fromContainerPixelToLatLng( new GPoint( left + width/2, top + height/2 ) );
         updateCornersFromCenter();
         m_this.redraw();
                 
-        $(m_this).trigger('move');
+        $(m_this).trigger('move');        
     });
-    
-    GEvent.addListener( map, "move", this.redraw );
 }
 
 
@@ -114,10 +170,12 @@ SheetController = function( map, logger )
     {
         var ne = m_mapSheetRectangle.getNE();
         var sw = m_mapSheetRectangle.getSW();
-        m_logger.message('Distance Y1: ' + sw.distanceFrom( new GLatLng(ne.lat(), sw.lng()) ));
-        m_logger.message('Distance Y2: ' + ne.distanceFrom( new GLatLng(sw.lat(), ne.lng()) ));
-        m_logger.message('Distance X1: ' + sw.distanceFrom( new GLatLng(sw.lat(), ne.lng()) ));
-        m_logger.message('Distance X2: ' + ne.distanceFrom( new GLatLng(ne.lat(), sw.lng()) ));
+
+        m_logger.message('Distance Y1: ' + OpenLayers.Util.distVincenty(sw, new OpenLayers.LonLat(sw.lon, ne.lat) ));
+        m_logger.message('Distance Y2: ' + OpenLayers.Util.distVincenty(ne, new OpenLayers.LonLat(ne.lon, sw.lat) ));
+        m_logger.message('Distance X1: ' + OpenLayers.Util.distVincenty(sw, new OpenLayers.LonLat(ne.lon, sw.lat) ));
+        m_logger.message('Distance X2: ' + OpenLayers.Util.distVincenty(ne, new OpenLayers.LonLat(sw.lon, ne.lat) ));
+
         
         var sheetData = m_this.getSheetData();
         var sizeX = sheetData.maxx - sheetData.minx + 1;
@@ -128,33 +186,47 @@ SheetController = function( map, logger )
     this.getSheetData = function()
     {
         var sheetOptions = m_sheetOptionsWidget.getSheetOptions();
-        var projection = m_map.getCurrentMapType().getProjection();
         
         var zoom = sheetOptions.m_resolution;
         var ne = m_mapSheetRectangle.getNE();
         var sw = m_mapSheetRectangle.getSW();
-        var pne = projection.fromLatLngToPixel(ne, zoom);
-        var psw = projection.fromLatLngToPixel(sw, zoom);
-        var nw = projection.fromPixelToLatLng(new GPoint(psw.x, pne.y), zoom);
-        var se = projection.fromPixelToLatLng(new GPoint(pne.x, psw.y), zoom);
+        
+        var pne = m_mapManager.lonlat2pixel(ne, zoom);
+        var psw = m_mapManager.lonlat2pixel(sw, zoom);
+        
+        var nw = m_mapManager.pixel2lonlat( {x: psw.x, y:pne.y}, zoom );
+        var se = m_mapManager.pixel2lonlat( {x: pne.x, y:psw.y}, zoom );
+        
+        //var lonlatProjection = new OpenLayers.Projection("EPSG:4326");
+        
+        //var pne = ne.clone().transform( lonlatProjection, map.getProjectionObject());
+        // var pne = projection.fromLatLngToPixel(ne, zoom);
+        // var psw = projection.fromLatLngToPixel(sw, zoom);
+        // var nw = projection.fromPixelToLatLng(new GPoint(psw.x, pne.y), zoom);
+        // var se = projection.fromPixelToLatLng(new GPoint(pne.x, psw.y), zoom);
+        // var pne = {x:0, y:0};
+        // var psw = {x:0, y:0};
+        // var nw = {lat:0, lon:0};
+        // var se = {lat:0, lon:0};
         
         return {zoom: zoom, minx: psw.x, miny: pne.y, maxx: pne.x, maxy: psw.y, 
                 lenx: sheetOptions.m_sizeX, leny: sheetOptions.m_sizeY, 
-                ne: [ne.lat(), ne.lng()], 
-                nw: [nw.lat(), nw.lng()], 
-                se: [se.lat(), se.lng()], 
-                sw: [sw.lat(), sw.lng()] };
+                ne: [ne.lat, ne.lon], 
+                nw: [nw.lat, nw.lon], 
+                se: [se.lat, se.lon], 
+                sw: [sw.lat, sw.lon] };
     };
 
-    var m_map = map;
+    var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
     var m_logger = logger;
     var m_this = this;    
     
     var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), logger );
     $(m_sheetOptionsWidget).bind("change", onUpdateSheetOptions);
     
-    var m_mapSheetRectangle = 
-        new MapSheetRectangle( map, map.getCenter(), 'red', 2, 0.5, logger );
+    var lonlatCenter = m_mapManager.map2lonlat( m_mapManager.getMap().getCenter() );
+    var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, lonlatCenter, logger );
+    
     $(m_mapSheetRectangle).bind('move', onRectangleMove);
     
     onUpdateSheetOptions();
@@ -204,6 +276,9 @@ SheetOptionsWidget = function( container, logger )
     this.setMapPixelSizes = function(sizeX, sizeY)
     {
         var dpi = Math.round((sizeX/m_sheetOptions.m_sizeX + sizeY/m_sheetOptions.m_sizeY)/2*INCH2CM);
+        // var dpi = (sizeX/m_sheetOptions.m_sizeX + sizeY/m_sheetOptions.m_sizeY)/2*INCH2CM;
+        // var dpi_x = sizeX/m_sheetOptions.m_sizeX*INCH2CM;
+        // var dpi_y = sizeY/m_sheetOptions.m_sizeY*INCH2CM;
         $("#sow_final_sheet_options", m_container).text( sizeX + "x" + sizeY + " pixels, " + dpi + " dpi" );
     }
     
@@ -297,7 +372,7 @@ DivLogger = function()
     
     var m_logDiv = $('<div></div>').addClass('ui-widget-content')
         .css({border: 'solid', position:'absolute', overflow:'auto', 
-              width: '300px', height: '200px', top: 0, left: 100});
+              width: '300px', height: '200px', top: 0, left: 100, zIndex: 2500});
         
     $("#sheet_container").append(m_logDiv.get(0));
     
