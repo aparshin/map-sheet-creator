@@ -61,8 +61,6 @@ my $globalShiftY = $miny % TILE_SIZE;
 
 print $query->header;
 
-# print join(",", @nePoint) . "\n";
-
 my $w = $maxx - $minx +1;
 my $h = $maxy - $miny +1;
 my $size = "${w}x${h}";

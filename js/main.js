@@ -1,6 +1,12 @@
 ///////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// Map Manager ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+// Helper for work with OpenLayers map.
+//
+// Class adds vector layer to map and draws one rectangle in given position. 
+// Rectangle movement callback can be added by user. User can manually change 
+// rectangle position.
+
 MapManager = function(map, style)
 {
     this.getMap = function() { return m_map; };
@@ -28,7 +34,6 @@ MapManager = function(map, style)
     
     this.pixel2lonlat = function( pixel, zoom )
     {
-        //var lonlatMapProj = this.lonlat2Map(lonlat);
         var resolution = map.getResolutionForZoom( zoom );
         
         var lon = pixel.x*resolution + map.maxExtent.left;
@@ -68,11 +73,20 @@ MapManager = function(map, style)
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// MapSheetRectangle ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+// Main purpose of the class is to manage one sheet rectangle size. 
+// Main invariant of the rectangle is phisical size of area in rendered map (meters) 
+// resulting in rectangle size dependance on rectangle position on map 
+// (because of Mercator projection of map)
+//
+// Rectangle can be defined using center coordinates and sizes or using corners' 
+// coordinates. Both variants are used in class, ensuring consistency in 
+// private function updateCornersFromCenter()
+//
 //Trigger events: move(any changes of position or sizes)
 /**
-* map: OpenLayers.Map
-* vectorLayer: OpenLayers.Layer.Vector
-* center: OpenLayers.LonLat
+* mapManager {MapManager}: helper for rectangle visualization
+* center {OpenLayers.LonLat}
+* logger {ILogger}: object for log writing
 */
 MapSheetRectangle = function(mapManager, center, logger)
 {
@@ -102,7 +116,6 @@ MapSheetRectangle = function(mapManager, center, logger)
         m_sw = new OpenLayers.LonLat( m_center.lon - delta.dLng, m_center.lat - delta.dLat );
     }
     
-    //supposes that lat and lon of the rectangle didn't change
     this.redraw = function()
     {
         if (!m_ne || !m_sw) return;
@@ -114,6 +127,7 @@ MapSheetRectangle = function(mapManager, center, logger)
         m_mapManager.addLonlatBounds(rectangleBounds);
     }
     
+    //sizeX and sizeY in meters
     this.setSize = function(sizeX, sizeY)
     {
         m_logger.message("Set size: " + sizeX + ", " + sizeY);
@@ -123,19 +137,20 @@ MapSheetRectangle = function(mapManager, center, logger)
         this.redraw();
         $(m_this).trigger('move');
     }
+    // Get clone of NE corner
+    this.getNE = function(){ if (m_ne) return m_ne.clone(); else return null; };
     
-    this.getNE = function(){ return m_ne.clone(); };
-    this.getSW = function(){ return m_sw.clone(); };
+    // Get clone of SW corner
+    this.getSW = function(){ if (m_sw) return m_sw.clone(); else return null; };
     
     var m_mapManager = mapManager;
     var m_this = this;
     var m_logger = logger;
-    var m_map = map;
     var m_center = center;
     var m_lengthX = 0;
     var m_lengthY = 0;
-    var m_ne = {};
-    var m_sw = {};
+    var m_ne = null;
+    var m_sw = null;
     
     m_mapManager.setDragCompleteCallback( function(feature, point)
     {
@@ -147,7 +162,7 @@ MapSheetRectangle = function(mapManager, center, logger)
         updateCornersFromCenter();
         m_this.redraw();
                 
-        $(m_this).trigger('move');        
+        $(m_this).trigger('move');
     });
 }
 
@@ -155,6 +170,9 @@ MapSheetRectangle = function(mapManager, center, logger)
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// SheetController /////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+// Synchronization between sheet rectangle and sheet options widget.
+// map {OpenLayers.Map}
+// logger {ILogger}
 SheetController = function( map, logger )
 {
     var onUpdateSheetOptions = function()
@@ -196,19 +214,7 @@ SheetController = function( map, logger )
         
         var nw = m_mapManager.pixel2lonlat( {x: psw.x, y:pne.y}, zoom );
         var se = m_mapManager.pixel2lonlat( {x: pne.x, y:psw.y}, zoom );
-        
-        //var lonlatProjection = new OpenLayers.Projection("EPSG:4326");
-        
-        //var pne = ne.clone().transform( lonlatProjection, map.getProjectionObject());
-        // var pne = projection.fromLatLngToPixel(ne, zoom);
-        // var psw = projection.fromLatLngToPixel(sw, zoom);
-        // var nw = projection.fromPixelToLatLng(new GPoint(psw.x, pne.y), zoom);
-        // var se = projection.fromPixelToLatLng(new GPoint(pne.x, psw.y), zoom);
-        // var pne = {x:0, y:0};
-        // var psw = {x:0, y:0};
-        // var nw = {lat:0, lon:0};
-        // var se = {lat:0, lon:0};
-        
+                
         return {zoom: zoom, minx: psw.x, miny: pne.y, maxx: pne.x, maxy: psw.y, 
                 lenx: sheetOptions.m_sizeX, leny: sheetOptions.m_sizeY, 
                 ne: [ne.lat, ne.lon], 
@@ -247,7 +253,7 @@ SheetOptions = function()
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// SheetOptionsWidget //////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-//Fire events: change
+//Trigger events: change
 SheetOptionsWidget = function( container, logger )
 {
     var updateSheetOptionsFromWidget = function()
@@ -333,7 +339,7 @@ SheetOptionsWidget = function( container, logger )
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// Loggers /////////////////////////////////////
+//////////////////////////// MapLayoutWidget //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 MapLayoutWidget = function( widgetContainer )
 {
@@ -362,7 +368,8 @@ MapLayoutWidget = function( widgetContainer )
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Loggers /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-//Interface: message(message). "message" is any string. Return none.
+//Interface ILogger: message(message). "message" is any string. Return none.
+
 DivLogger = function()
 {
     this.message = function( message )
@@ -374,7 +381,8 @@ DivLogger = function()
         .css({border: 'solid', position:'absolute', overflow:'auto', 
               width: '300px', height: '200px', top: 0, left: 100, zIndex: 2500});
         
-    $("#sheet_container").append(m_logDiv.get(0));
+    // $("#sheet_container").append(m_logDiv.get(0));
+    $("body").append(m_logDiv.get(0));
     
 };
 

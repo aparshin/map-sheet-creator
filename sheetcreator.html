@@ -3,42 +3,13 @@
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
         <title>Map Sheets Composer</title>
 
-        <!--
-        <script type="text/javascript">
-            //alert(window.location.host);
-            var mapKeysHash = {
-                'localhost':        'ABQIAAAAxeQCb3wu6PA7zVxqnImk_xT2yXp_ZAY8_ufC3CFXhHIE1NvwkxQn9kLh0Gl1Lf7PiyDLsthpK7Pctg',
-                'parshin.tmweb.ru': 'ABQIAAAAxeQCb3wu6PA7zVxqnImk_xQfbKUljRK_208NZ6QVgd1EVBmc4hQ7TvqOwd7Nvp6as0YdevNyKEXBFg',
-                '188.127.225.240':  'ABQIAAAAxeQCb3wu6PA7zVxqnImk_xSg4jCwsvUA7pdiifnaWB9jw6m4ShRGTIAE40RANNarXSTglkRlbcVWpQ'
-              };
-            var mapKey = mapKeysHash[window.location.host];
-            if ( !mapKey ) 
-                alert("Unknown host: " + window.location.host);
-                
-            document.write([
-              '<script src="http://maps.google.com/maps?file=api&amp;v=3&amp;key=', mapKey,
-              '&amp;sensor=false&amp;hl=ru" type="text/javascript"><\/script>'
-            ].join(''));
-        </script>
-        
-        <script type="text/javascript" src="/thirdparty/js/arbalet.js"    ></script>
-        <script type="text/javascript" src="/thirdparty/js/slazav_map.js" ></script>
-        <script type="text/javascript" src="js/map_layers.js" ></script>
-        -->
-        <script type="text/javascript" src="js/main.js" ></script>
-
         <link type="text/css" href="css/no-theme/jquery-ui-1.8.5.custom.css" rel="stylesheet" />	
-		<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+        <link type="text/css" href="css/sheetcomposer.css"                   rel="stylesheet" />
+		<script type="text/javascript" src="js/jquery-1.4.2.min.js"          ></script>
 		<script type="text/javascript" src="js/jquery-ui-1.8.5.custom.min.js"></script>
-        <script src='/thirdparty/js/OpenLayers.js'></script>
-
-        <style>
-            #renderWidget { border: 4px solid blue; width: 200px; height: 100px; padding: 0.5em; position: absolute; left: 0; top: 300; z-index: 2500}
-            #sheetOptionsWidgetContainer { border: 4px solid red; padding: 0.5em; position: absolute; left: 500; top: 0; background-color: white; z-index: 2500}
-            #mapLayoutWidgetContainer { border: 4px solid blue; padding: 0.5em; position: absolute; left: 800; top: 0; background-color: white}
-            .sheet { border: solid; padding: 0; position: absolute }
-            #available_maps,#maps_layout { list-style-type: none; margin: 0; padding: 0;}
-        </style>
+        <script type="text/javascript" src="../thirdparty/js/OpenLayers.js"    ></script>
+        
+        <script type="text/javascript" src="js/main.js" ></script>
         
         <script type="text/javascript">
             $(function() {
@@ -72,9 +43,6 @@
             
             function initialize()
             {                
-                //map = new GMap2( document.getElementById("map_canvas") );
-                //map.setCenter(new GLatLng(55.78, 37.98), 8);
-                
                 var slazavLayer = new OpenLayers.Layer.TMS("Slazav",
                            MAP_HOST_NAME + "/maps/slazav/",
                            { 'type':'png', 'getURL':get_my_url, transparent: 'true' });
@@ -84,9 +52,6 @@
                            { 'type':'png', 'getURL':get_my_url, transparent: 'true' });
                 
                 var osmLayer = new OpenLayers.Layer.OSM();
-                
-                //var polygonLayer = new OpenLayers.Layer.Vector("Polygon Layer");
-                
                 
                 map = new OpenLayers.Map("map_canvas", {
                     maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
@@ -104,23 +69,7 @@
                 
                 var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
                 map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
-                
-                //var dragControl = new OpenLayers.Control.DragFeature(polygonLayer);
-                //map.addControl( dragControl );
-                //dragControl.activate();
-                
-                //var slazavMap  = new GMapType([gTiles.getLocalArbaletTile(), gTiles.getSlazavTile()],          new GMercatorProjection(22), 'Slazav',  { textColor:'black' });
-                //var arbaletMap = new GMapType([G_NORMAL_MAP.getTileLayers()[0], gTiles.getOuterArbaletTile()], new GMercatorProjection(22), 'Arbalet', { textColor:'black' });
-                
-                //map.removeMapType(G_NORMAL_MAP); 
-                //map.removeMapType(G_SATELLITE_MAP);
-                //map.removeMapType(G_HYBRID_MAP);
-                
-                //map.addMapType(slazavMap);
-                //map.addMapType(arbaletMap);                    
-                //map.setUIToDefault();
-                //map.setMapType(slazavMap);
-                
+                                
                 var curLogger = new DivLogger();
                 //var curLogger = new NullLogger();
                     
@@ -134,75 +83,71 @@
                 var renderData = gSheetController.getSheetData();
                 var mapLayoutData = gMapLayoutWidget.getMapLayout();
                 renderData['map_layout'] = mapLayoutData;
-                //$.getJSON("cgi-bin/render.cgi", renderData, function(data)
                 $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", success: function(data)
                 {
-                    //alert(data);
                     $('#download_link').html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
                                        .append($('<br/>'))
                                        .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
                     
-                    if (data.debug) alert(data.debug);
+                    if (data.debug) curLogger.message("Debug from server: " + data.debug);
                 }, error: function(request, textStatus, error){
                     alert("Error at server!\nStatus: " + textStatus + "\nError: " + error);
-		}});
+                }});
             }
         </script>
     </head>
 
     <body onload="initialize()" onunload="GUnload()" style="margin:0; padding:0; overflow:hidden;">
         <div id="map_canvas" style="width: 100%; height: 100%; margin:0; padding:0; overflow:hidden;"></div>
-        <div id="sheet_container">
-            <div id="renderWidget" class="ui-widget-content">
+        <div id="renderWidget" class="ui-widget-content">
                 <form><input type="button" value="Render" onclick="renderSheet();"></form>
                 <p id="download_link"></p>
-            </div>
-            <div id="sheetOptionsWidgetContainer">
-                <form>
-                    <input id="sow_albom" type="radio" name="orientation" value="Albom">Albom<br/>
-                    <input id="sow_portr" type="radio" name="orientation" value="Portrait" checked>Portrait<br/>
-                    <p>Size preset:
-                        <select id = "sow_size_preset" name="size_preset">
-                            <option value="A4">A4</option>
-                            <option value="A3">A3</option>
-                            <option value="custom">Custom</option>
-                        </select>
-                        <br/>
-                        Size(cm): 
-                        <input id="sow_sizex" type="text" name="xlength" size=5> 
-                        x 
-                        <input id="sow_sizey" type="text" name="ylength" size=5>
-                        <br/>
-                        Scale(m in cm): <input id = "sow_scale" type="text" name="scale" size=4><br/>
-                        Resolution:
-                            <select name="resolution">
-                                <option value="13">Level 13</option>
-                                <option value="14">Level 14</option>
-                            </select>
-                    </p>
-                    <p>Final sheet options:<br/>
-                        <span id = "sow_final_sheet_options"></span>
-                    </p>
-                </form>
-            </div>
-            <!--
-            <div id="mapLayoutWidgetContainer">
-                <table><tr>
-                    <td>
-                        <ul id = "available_maps">
-                            <li>Slazav Map</li>
-                            <li>Arbalet Map</li>
-                            <li>Google Map</li>
-                        </ul>
-                    </td>
-                    <td width="50%">
-                        <ul id = "maps_layout">
-                            <li></li>
-                        </ul>
-                    </td>
-                </tr></table>
-            </div>
-            -->
         </div>
+        <div id="sheetOptionsWidgetContainer">
+            <form>
+                <input id="sow_albom" type="radio" name="orientation" value="Albom">Albom<br/>
+                <input id="sow_portr" type="radio" name="orientation" value="Portrait" checked>Portrait<br/>
+                <p>Size preset:
+                    <select id = "sow_size_preset" name="size_preset">
+                        <option value="A4">A4</option>
+                        <option value="A3">A3</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <br/>
+                    Size(cm): 
+                    <input id="sow_sizex" type="text" name="xlength" size=5> 
+                    x 
+                    <input id="sow_sizey" type="text" name="ylength" size=5>
+                    <br/>
+                    Scale(m in cm): <input id = "sow_scale" type="text" name="scale" size=4><br/>
+                    Resolution:
+                        <select name="resolution">
+                            <option value="13">Level 13</option>
+                            <option value="14">Level 14</option>
+                        </select>
+                </p>
+                <p>Final sheet parameters:<br/>
+                    <span id = "sow_final_sheet_options"></span>
+                </p>
+            </form>
+        </div>
+        <!--
+        <div id="mapLayoutWidgetContainer">
+            <table><tr>
+                <td>
+                    <ul id = "available_maps">
+                        <li>Slazav Map</li>
+                        <li>Arbalet Map</li>
+                        <li>Google Map</li>
+                    </ul>
+                </td>
+                <td width="50%">
+                    <ul id = "maps_layout">
+                        <li></li>
+                    </ul>
+                </td>
+            </tr></table>
+        </div>
+        -->
     </body>
 </html>

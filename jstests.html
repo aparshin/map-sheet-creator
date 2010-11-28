@@ -1,0 +1,58 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script type="text/javascript" src="../thirdparty/js/jsUnitCore.js"></script>
+    
+    <link type="text/css" href="css/no-theme/jquery-ui-1.8.5.custom.css" rel="stylesheet" />	
+    <link type="text/css" href="css/sheetcomposer.css"                   rel="stylesheet" />
+    <script type="text/javascript" src="js/jquery-1.4.2.min.js"          ></script>
+    <script type="text/javascript" src="js/jquery-ui-1.8.5.custom.min.js"></script>
+    <script type="text/javascript" src="../thirdparty/js/OpenLayers.js"    ></script>
+    
+    <script type="text/javascript" src="js/main.js" ></script>
+
+    <script type="text/javascript">
+
+        function testTest() {
+            var map = new OpenLayers.Map("map_canvas", {
+                    maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
+                    numZoomLevels:18,
+                    maxResolution:156543.0339,
+                    units:'m',
+                    projection: "EPSG:900913",
+                    displayProjection: new OpenLayers.Projection("EPSG:4326"),
+                    allOverlays: true
+                });
+            
+            assertNotNull("Can't create map", map);
+            
+            //map.getProjectionObject() doesn't work without layers
+            var dumpLayer = new OpenLayers.Layer.Vector("Dump Layer");
+            map.addLayers([dumpLayer]);
+            
+            assertNotNull("Not exists projection object", map.getProjectionObject());
+            var curLogger = new NullLogger();
+            
+            var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
+            map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
+            
+            var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
+            var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, mapCenterLonLat, curLogger );
+            
+            assertNull( m_mapSheetRectangle.getNE() );
+            assertNull( m_mapSheetRectangle.getSW() );
+            
+            m_mapSheetRectangle.setSize(15000, 15000);
+            
+            assertNotNull( m_mapSheetRectangle.getNE() );
+            assertNotNull( m_mapSheetRectangle.getSW() );
+        }
+        
+    </script>
+</head>
+
+<body>
+<div id="map_canvas" style="width: 100%; height: 100%; margin:0; padding:0; overflow:hidden;"></div>
+</body>
+</html>
