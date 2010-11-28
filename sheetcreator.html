@@ -134,7 +134,8 @@
                 var renderData = gSheetController.getSheetData();
                 var mapLayoutData = gMapLayoutWidget.getMapLayout();
                 renderData['map_layout'] = mapLayoutData;
-                $.getJSON("cgi-bin/render.cgi", renderData, function(data)
+                //$.getJSON("cgi-bin/render.cgi", renderData, function(data)
+                $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", success: function(data)
                 {
                     //alert(data);
                     $('#download_link').html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
@@ -142,7 +143,9 @@
                                        .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
                     
                     if (data.debug) alert(data.debug);
-                });
+                }, error: function(request, textStatus, error){
+                    alert("Error at server!\nStatus: " + textStatus + "\nError: " + error);
+		}});
             }
         </script>
     </head>

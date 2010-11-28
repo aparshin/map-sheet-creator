@@ -26,7 +26,7 @@ use POSIX;
 use constant TILE_SIZE     => 256;
 use constant TILE_FOLDERS  => {slazav => '../../maps/slazav/', arbalet => '../../maps/arbalet/'};
 use constant TARGET_FOLDER => '../sheets';
-    
+
 my $query = new CGI;
 $query->charset('utf-8');
 my $minx = $query->param('minx');
@@ -68,7 +68,7 @@ my $h = $maxy - $miny +1;
 my $size = "${w}x${h}";
 my $density =  ceil($w/$lenx) . "x" . ceil($h/$leny);
 
-my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density);
+my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density, background => 'xc:transparent', colors => 255);
 $image->ReadImage('xc:transparent');
 
 for my $x ($tileminx..$tilemaxx)
@@ -122,12 +122,12 @@ open $MAPFILE, ">:crlf", TARGET_FOLDER."/$mapFilename";
 printMapFile(\@nwPoint, \@nePoint, \@sePoint, \@swPoint, $filename, $w, $h, int($w/$lenx), $MAPFILE);
 close $MAPFILE;
 
-my $res;
-$res->{map_filename} = "sheet_${prefix}.map";
-$res->{pic_filename} = "sheet_${prefix}.png";
+my $outResult;
+$outResult->{map_filename} = "sheet_${prefix}.map";
+$outResult->{pic_filename} = "sheet_${prefix}.png";
 # $res->{debug} = "$density $lenx $leny" . $w/$lenx . " " . $h/$leny;
 # print "sheet_${prefix}.png";
-print to_json( $res );
+print to_json( $outResult );
 
 sub getTileFilename
 {
