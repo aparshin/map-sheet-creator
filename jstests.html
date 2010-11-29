@@ -13,8 +13,8 @@
     <script type="text/javascript" src="js/main.js" ></script>
 
     <script type="text/javascript">
-
-        function testTest() {
+    
+        function testMapRectangle() {
             var map = new OpenLayers.Map("map_canvas", {
                     maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
                     numZoomLevels:18,
@@ -40,19 +40,57 @@
             var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
             var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, mapCenterLonLat, curLogger );
             
+            var moveEventCount = 0;
+            
+            $(m_mapSheetRectangle).bind('move', function(){moveEventCount++;});
+            
             assertNull( m_mapSheetRectangle.getNE() );
             assertNull( m_mapSheetRectangle.getSW() );
+            assertEquals( moveEventCount, 0 );
+            assertNotNull( m_mapManager.getDragCallback() );
             
             m_mapSheetRectangle.setSize(15000, 15000);
             
             assertNotNull( m_mapSheetRectangle.getNE() );
             assertNotNull( m_mapSheetRectangle.getSW() );
+            assertEquals( moveEventCount, 1 ); 
+            
+            m_mapManager.getDragCallback()( new OpenLayers.Bounds(10, 20, 10, 20) );
+            
+            assertEquals( moveEventCount, 2 ); 
+        }
+        
+        function testSheetOptionsWidget()
+        {
+            var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), new NullLogger() );
+            var sx = 100;
+            var sy = 200;
+            
+            $("#sow_sizex").val(sx);
+            $("#sow_sizey").val(sy);
+            $("#sow_sizex").trigger("change");
+            $("#sow_sizey").trigger("change");
+            var sheetOptions = m_sheetOptionsWidget.getSheetOptions();
+            assertEquals( sheetOptions.m_sizeX, sx);
+            assertEquals( sheetOptions.m_sizeY, sy);
+            
+            $("#sow_albom").attr("checked", "checked");
+            $("#sow_albom").trigger("change");
+            sheetOptions = m_sheetOptionsWidget.getSheetOptions();
+            assertEquals( sheetOptions.m_sizeX, sy);
+            assertEquals( sheetOptions.m_sizeY, sx);
+            
+            $("#sow_sizex").val("aaaaaaaaaaaaaaaaaaaaaaa");
+            $("#sow_sizex").trigger("change");
+            sheetOptions = m_sheetOptionsWidget.getSheetOptions();
+            assertNaN( sheetOptions.m_sizeX );
         }
         
     </script>
 </head>
 
 <body>
-<div id="map_canvas" style="width: 100%; height: 100%; margin:0; padding:0; overflow:hidden;"></div>
+    <div id="map_canvas" style="width: 100%; height: 100%; margin:0; padding:0; overflow:hidden;"></div>
+    <!--#include virtual="sheet_options_widget.html" -->
 </body>
 </html>

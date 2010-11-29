@@ -66,7 +66,7 @@ my $h = $maxy - $miny +1;
 my $size = "${w}x${h}";
 my $density =  ceil($w/$lenx) . "x" . ceil($h/$leny);
 
-my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density, background => 'xc:transparent', colors => 255);
+my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density, transparent => 0, background => 0, colors => 255);
 $image->ReadImage('xc:transparent');
 
 for my $x ($tileminx..$tilemaxx)

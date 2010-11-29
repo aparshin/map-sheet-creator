@@ -103,34 +103,9 @@
                 <form><input type="button" value="Render" onclick="renderSheet();"></form>
                 <p id="download_link"></p>
         </div>
-        <div id="sheetOptionsWidgetContainer">
-            <form>
-                <input id="sow_albom" type="radio" name="orientation" value="Albom">Albom<br/>
-                <input id="sow_portr" type="radio" name="orientation" value="Portrait" checked>Portrait<br/>
-                <p>Size preset:
-                    <select id = "sow_size_preset" name="size_preset">
-                        <option value="A4">A4</option>
-                        <option value="A3">A3</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                    <br/>
-                    Size(cm): 
-                    <input id="sow_sizex" type="text" name="xlength" size=5> 
-                    x 
-                    <input id="sow_sizey" type="text" name="ylength" size=5>
-                    <br/>
-                    Scale(m in cm): <input id = "sow_scale" type="text" name="scale" size=4><br/>
-                    Resolution:
-                        <select name="resolution">
-                            <option value="13">Level 13</option>
-                            <option value="14">Level 14</option>
-                        </select>
-                </p>
-                <p>Final sheet parameters:<br/>
-                    <span id = "sow_final_sheet_options"></span>
-                </p>
-            </form>
-        </div>
+        
+        <!--#include virtual="sheet_options_widget.html" -->
+
         <!--
         <div id="mapLayoutWidgetContainer">
             <table><tr>

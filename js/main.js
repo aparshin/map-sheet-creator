@@ -3,9 +3,9 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Helper for work with OpenLayers map.
 //
-// Class adds vector layer to map and draws one rectangle in given position. 
-// Rectangle movement callback can be added by user. User can manually change 
-// rectangle position.
+// Class adds vector layer to map and draws one rectangle on it. 
+// Rectangle movement callback can be added by user. Rectangle position can 
+// change using class method.
 
 MapManager = function(map, style)
 {
@@ -42,11 +42,15 @@ MapManager = function(map, style)
         return this.map2lonlat( new OpenLayers.LonLat( lon, lat ) );
     }
     
-    
+    // callback will be called when rectangle is dragged by user
+    // callback format: callback(bounds). 
+    //      bounds {OpenLayers.Bounds} - new bounds of rectangle in map projection
     this.setDragCompleteCallback = function( callback )
     {
-        m_dragControl.onComplete = callback;
+        this.m_callback = callback;
+        m_dragControl.onComplete = function(feature){ callback(feature.geometry.getBounds()); };
     }
+    this.getDragCallback = function(){ return this.m_callback; }
     
     this.addLonlatBounds = function( bounds, style )
     {
@@ -57,6 +61,7 @@ MapManager = function(map, style)
     
     var m_map = map;
     var m_style = style;
+    var m_callback = null;
         
     var m_polygonLayer = new OpenLayers.Layer.Vector("Polygon Layer");
     map.addLayers([m_polygonLayer]);
@@ -152,12 +157,11 @@ MapSheetRectangle = function(mapManager, center, logger)
     var m_ne = null;
     var m_sw = null;
     
-    m_mapManager.setDragCompleteCallback( function(feature, point)
+    m_mapManager.setDragCompleteCallback( function(bounds)
     {
         //invariant of rectangle is its center and length (in meters). 
-        //So, calculate center and fit size of rectangle on screen
-        var centerMapProj = feature.geometry.getBounds().getCenterLonLat();
-        m_center = m_mapManager.map2lonlat(centerMapProj);
+        //So, calculate center and estimate size of rectangle on screen
+        m_center = m_mapManager.map2lonlat(bounds.getCenterLonLat());
         
         updateCornersFromCenter();
         m_this.redraw();
@@ -241,13 +245,16 @@ SheetController = function( map, logger )
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// SheetOptions ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
+//All sheet options, which user can change except position on map. NaN 
 SheetOptions = function()
 {
-    this.m_sizeX = 0;
-    this.m_sizeY = 0;
-    this.m_scale = 0;
-    this.m_resolution = 0;
-    this.m_orientation = 0; //0 - undef, 1 - albom, 2 - portrait
+    this.clone = function(){ return $.extend({}, this);};
+    
+    this.m_sizeX = NaN; //centimeters
+    this.m_sizeY = NaN; //centimeters
+    this.m_scale = NaN; //map's zoom level (13, 14, etc)
+    this.m_resolution = NaN; // meters per centimeter
+    this.m_orientation = NaN; // 1 - albom, 2 - portrait
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -259,10 +266,10 @@ SheetOptionsWidget = function( container, logger )
     var updateSheetOptionsFromWidget = function()
     {
         m_sheetOptions.m_orientation = $("#sow_albom", m_container).attr("checked") ? 1 : 2;
-        m_sheetOptions.m_sizeX = $("#sow_sizex", m_container).val();
-        m_sheetOptions.m_sizeY = $("#sow_sizey", m_container).val();
-        m_sheetOptions.m_scale = $("#sow_scale", m_container).val();
-        m_sheetOptions.m_resolution = $("select[name=resolution]", m_container).val();
+        m_sheetOptions.m_sizeX = parseFloat( $("#sow_sizex", m_container).val() );
+        m_sheetOptions.m_sizeY = parseFloat( $("#sow_sizey", m_container).val() );
+        m_sheetOptions.m_scale = parseFloat( $("#sow_scale", m_container).val() );
+        m_sheetOptions.m_resolution = parseFloat( $("select[name=resolution]", m_container).val() );
         m_logger.message('Updating sheet options: '+ m_sheetOptions.m_orientation + ',' + 
             m_sheetOptions.m_sizeX + ',' + m_sheetOptions.m_sizeY + ',' + 
             m_sheetOptions.m_scale + ',' + m_sheetOptions.m_resolution);
@@ -275,8 +282,8 @@ SheetOptionsWidget = function( container, logger )
         var sizex = m_sizePresets[presetName].sizex;
         var sizey = m_sizePresets[presetName].sizey;
         
-        $("#sow_sizex", m_container).val( isAlbom ? sizex : sizey );
-        $("#sow_sizey", m_container).val( isAlbom ? sizey : sizex );
+        $("#sow_sizex", m_container).val( isAlbom ? sizey : sizex );
+        $("#sow_sizey", m_container).val( isAlbom ? sizex : sizey );
     }
     
     this.setMapPixelSizes = function(sizeX, sizeY)
@@ -288,7 +295,10 @@ SheetOptionsWidget = function( container, logger )
         $("#sow_final_sheet_options", m_container).text( sizeX + "x" + sizeY + " pixels, " + dpi + " dpi" );
     }
     
-    this.getSheetOptions = function(){ return m_sheetOptions; };
+    //return clone of current sheet options
+    this.getSheetOptions = function(){ return m_sheetOptions.clone(); };
+    
+    //this.forceUpdate = function(){ updateSheetOptionsFromWidget(); };
     
     var DEFAULT_SCALE = 500;
     var INCH2CM = 2.54;
