@@ -1,4 +1,4 @@
-#!/usr/bin/perl -wT -I ../../thirdparty/perl
+#!/usr/bin/perl -wT
 
 # Combines tiles into single picture and saves it to disk (as 8-bit PNG). Map file for OziExplorer is also constructed.
 # Input parameters:
