@@ -66,7 +66,7 @@ my $h = $maxy - $miny +1;
 my $size = "${w}x${h}";
 my $density =  ceil($w/$lenx) . "x" . ceil($h/$leny);
 
-my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density, transparent => 0, background => 0, colors => 255);
+my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density, colors => 255);
 $image->ReadImage('xc:transparent');
 
 for my $x ($tileminx..$tilemaxx)
@@ -112,7 +112,11 @@ my $prefix = 0;
 while ( -e TARGET_FOLDER."/sheet_${prefix}.png" ) {$prefix++;};
 my $filename = "sheet_${prefix}.png";
 my $res = $image->Write("png8:".TARGET_FOLDER."/$filename");
-die "$res" if "$res";
+
+# We skip any warnings here. When working under WinXP, there are many warnings with PNG8 format.
+# Looks like some of them are bugs in IM: http://www.wizards-toolkit.org/discourse-server/viewtopic.php?f=3&t=16490
+# TODO: update ImageMagick
+die "$res" if "$res" =~ /error/;
 
 (my $mapFilename = $filename) =~ s/\.png$/.map/;
 my $MAPFILE;

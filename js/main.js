@@ -63,7 +63,7 @@ MapManager = function(map, style)
     var m_style = style;
     var m_callback = null;
         
-    var m_polygonLayer = new OpenLayers.Layer.Vector("Polygon Layer");
+    var m_polygonLayer = new OpenLayers.Layer.Vector("Polygon Layer", {displayInLayerSwitcher: false});
     map.addLayers([m_polygonLayer]);
     
     var m_dragControl = new OpenLayers.Control.DragFeature(m_polygonLayer);
@@ -351,29 +351,44 @@ SheetOptionsWidget = function( container, logger )
 ///////////////////////////////////////////////////////////////////////////////
 //////////////////////////// MapLayoutWidget //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-MapLayoutWidget = function( widgetContainer )
+MapLayoutWidget = function( map, namesMap )
 {
-    //$("#available_maps li,#maps_layout li", widgetContainer).addClass("ui-state-default");
-    //$("#available_maps li", widgetContainer).draggable({appendTo: "body", helper:"clone", connectToSortable: "#maps_layout"});
-    //$("#maps_layout", widgetContainer).sortable();
-    // $("#maps_layout", widgetContainer).droppable({
-			// activeClass: "ui-state-default",
-			// hoverClass: "ui-state-hover",
-			// accept: ":not(.ui-sortable-helper)",
-			// drop: function( event, ui ) {
-				// $( this ).find( ".placeholder" ).remove();
-				// $( "<li></li>" ).text( ui.draggable.text() ).appendTo( this );
-			// }
-		// }).sortable({
-			// items: "li:not(.placeholder)",
-			// sort: function() {
-				// // gets added unintentionally by droppable interacting with sortable
-				// // using connectWithSortable fixes this, but doesn't allow you to customize active/hoverClass options
-				// $( this ).removeClass( "ui-state-default" );
-			// }
-		// });
-    this.getMapLayout = function() { return "arbalet,slazav"; };
+    this.getMapLayout = function() 
+    {
+        var serverNames = [];
+        for ( var k = 0; k < map.layers.length; k++ )
+            if ( map.layers[k].name in namesMap )
+                serverNames.push( namesMap[map.layers[k].name] );
+        //return "arbalet,slazav";
+        return serverNames.join(',');
+    };
 }
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Loggers /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//Data model. Represets all properties of one sheet of the map 
+//
+// Trigger event "change"
+//
+// Parameters:
+// - size_x, size_y (get/set)
+// - scale (get/set)
+// - resolution (get/set)
+// - center (get/set)
+// - ne, sw (get)
+// Sheet = function()
+// {
+    // this.set = function(properties)
+    // {
+        
+        // $(m_this).trigger('change');
+    // }
+    
+    // this.get = function(property)
+    // {
+    // }
+// }
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Loggers /////////////////////////////////////

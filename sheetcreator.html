@@ -6,7 +6,8 @@
         <link type="text/css" href="thirdparty/css/no-theme/jquery-ui-1.8.5.custom.css" rel="stylesheet" />	
 		<script type="text/javascript" src="js/jquery-1.4.2.min.js"          ></script>
 		<script type="text/javascript" src="js/jquery-ui-1.8.5.custom.min.js"></script>
-        <script type="text/javascript" src="thirdparty/js/OpenLayers.js"    ></script>
+        <script type="text/javascript" src="thirdparty/js/OpenLayers.js"     ></script>
+		<script type="text/javascript" src="js/LayerSwitcherWithOrder.js "   ></script>
         
         <link type="text/css" href="css/sheetcomposer.css"                   rel="stylesheet" />
         <script type="text/javascript" src="js/main.js" ></script>
@@ -53,6 +54,10 @@
                 
                 var osmLayer = new OpenLayers.Layer.OSM();
                 
+                var serverNamesMap = {};
+                serverNamesMap[slazavLayer.name] = 'slazav',
+                serverNamesMap[arbaletLayer.name] = 'arbalet';
+                
                 map = new OpenLayers.Map("map_canvas", {
                     maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
                     numZoomLevels:18,
@@ -65,7 +70,7 @@
                 
                 map.addLayers([osmLayer, arbaletLayer, slazavLayer]);
             
-                map.addControl( new OpenLayers.Control.LayerSwitcher() );
+                map.addControl( new OpenLayers.Control.LayerSwitcherWithOrder() );
                 
                 var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
                 map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
@@ -73,7 +78,7 @@
                 var curLogger = new DivLogger();
                 //var curLogger = new NullLogger();
                     
-                gMapLayoutWidget = new MapLayoutWidget($("#mapLayoutWidgetContainer"));
+                gMapLayoutWidget = new MapLayoutWidget(map, serverNamesMap);
                 gSheetController = new SheetController( map, curLogger );
             }
             
@@ -83,6 +88,7 @@
                 var renderData = gSheetController.getSheetData();
                 var mapLayoutData = gMapLayoutWidget.getMapLayout();
                 renderData['map_layout'] = mapLayoutData;
+                //alert(mapLayoutData);
                 $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", success: function(data)
                 {
                     $('#download_link').html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
