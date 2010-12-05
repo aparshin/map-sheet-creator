@@ -56,7 +56,8 @@ my $requestID = DBManager::registerRequest({
                                  se_lon => $sePoint[1], se_lat => $sePoint[0],
                                  sw_lon => $swPoint[1], sw_lat => $swPoint[0]
                                });
-                               
+
+DBManager::addRequestLayers( $requestID, \@maps );
 # my $miny = 324*256+210;
 # my $maxy = 325*256+130;
 # my $minx = 618*256+107;
@@ -120,8 +121,9 @@ for my $x ($tileminx..$tilemaxx)
     }
 }
 
-my $prefix = 0;
-while ( -e TARGET_FOLDER."/sheet_${prefix}.png" ) {$prefix++;};
+# my $prefix = 0;
+# while ( -e TARGET_FOLDER."/sheet_${prefix}.png" ) {$prefix++;};
+my $prefix = $requestID;
 my $filename = "sheet_${prefix}.png";
 my $res = $image->Write("png8:".TARGET_FOLDER."/$filename");
 

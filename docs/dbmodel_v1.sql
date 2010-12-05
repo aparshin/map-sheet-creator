@@ -6,6 +6,8 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL';
 -- -----------------------------------------------------
 -- Table `request`
 -- -----------------------------------------------------
+DROP TABLE IF EXISTS `request` ;
+
 CREATE  TABLE IF NOT EXISTS `request` (
   `id` INT NOT NULL AUTO_INCREMENT ,
   `minx` INT NOT NULL ,
@@ -29,14 +31,15 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `request_layers`
+-- Table `request_layer`
 -- -----------------------------------------------------
-CREATE  TABLE IF NOT EXISTS `request_layers` (
+DROP TABLE IF EXISTS `request_layer` ;
+
+CREATE  TABLE IF NOT EXISTS `request_layer` (
   `idrequest` INT NOT NULL ,
-  `order` INT NOT NULL ,
-  `mapname` VARCHAR(45) NOT NULL ,
-  PRIMARY KEY (`idrequest`, `order`) ,
-  UNIQUE INDEX `idrequest_UNIQUE` (`idrequest` ASC) ,
+  `layer_order` INT NOT NULL ,
+  `layer_name` VARCHAR(45) NOT NULL ,
+  PRIMARY KEY (`idrequest`, `layer_order`) ,
   INDEX `fk_request` (`idrequest` ASC) ,
   CONSTRAINT `fk_request`
     FOREIGN KEY (`idrequest` )
@@ -49,12 +52,31 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 -- Table `metadata`
 -- -----------------------------------------------------
+DROP TABLE IF EXISTS `metadata` ;
+
 CREATE  TABLE IF NOT EXISTS `metadata` (
   `version` INT NOT NULL ,
   PRIMARY KEY (`version`) )
 ENGINE = InnoDB;
 
 
+-- -----------------------------------------------------
+-- procedure dropall
+-- -----------------------------------------------------
+DROP procedure IF EXISTS `dropall`;
+DELIMITER $$
+
+DELIMITER $$
+CREATE PROCEDURE dropall ()
+BEGIN
+    drop table request_layer, request, metadata;
+END$$
+
+$$
+DELIMITER ;
+
+
+DELIMITER ;
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

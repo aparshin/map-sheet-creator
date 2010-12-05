@@ -38,7 +38,17 @@ sub changeRequestStatus
     my $sth = dbh->do("UPDATE request SET status = $status WHERE id = $id");
 }
 
-# Implementation
+sub addRequestLayers
+{
+    my ($id, $layers) = @_;
+    return unless scalar @$layers;
+    my @orderIndex = 0..(scalar @$layers - 1);
+    # my @ids;
+    # push @ids, int($id) for 1..(scalar @$layers);
+    
+    my $sth = dbh->prepare("INSERT INTO request_layer (idrequest, layer_order, layer_name) VALUES ($id, ?, ?)") or die $DBI::errstr;
+    $sth->execute_array(undef, \@orderIndex, $layers) or die $DBI::errstr;
+}
 
 sub DESTROY 
 {
