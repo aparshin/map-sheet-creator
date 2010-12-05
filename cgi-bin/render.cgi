@@ -1,10 +1,10 @@
-#!/usr/bin/perl -wT
+#!/usr/bin/perl -wT -I .
 
 # Combines tiles into single picture and saves it to disk (as 8-bit PNG). Map file for OziExplorer is also constructed.
 # Input parameters:
 # * minx, miny, maxx, maxy - coordinates of area in composition (pixels)
 # * zoom level, which should be used for compining (for example, 13, 14, ...)
-# * lenx, leny - phisical length of composed picture after printing (cantimeters). Used to set dpi
+# * lenx, leny - phisical length of composed picture after printing (centimeters). Used to set dpi
 # * ne, nw, se, sw - 2-element arrays of corners coordinates (lat, lon)
 #
 # Output:
@@ -22,6 +22,8 @@ use CGI::Carp qw ( fatalsToBrowser );
 use Image::Magick;
 use JSON;
 use POSIX;
+
+use DBManager;
 
 use constant TILE_SIZE     => 256;
 use constant TILE_FOLDERS  => {slazav => '../../maps/slazav/', arbalet => '../../maps/arbalet/'};
@@ -44,12 +46,22 @@ my @nwPoint = $query->param('nw[]');
 my @sePoint = $query->param('se[]');
 my @swPoint = $query->param('sw[]');
 
+my $requestID = DBManager::registerRequest({
+                                 minx => $minx, maxx=> $maxx, 
+                                 miny => $miny, maxy=> $maxy, 
+                                 zoom => $zoom, 
+                                 sizex => $lenx, sizey => $leny, 
+                                 ne_lon => $nePoint[1], ne_lat => $nePoint[0],
+                                 nw_lon => $nwPoint[1], nw_lat => $nwPoint[0],
+                                 se_lon => $sePoint[1], se_lat => $sePoint[0],
+                                 sw_lon => $swPoint[1], sw_lat => $swPoint[0]
+                               });
+                               
 # my $miny = 324*256+210;
 # my $maxy = 325*256+130;
 # my $minx = 618*256+107;
 # my $maxx = 621*256+150;
 # my $zoom = 10;
-
 
 my $tileminx = int($minx/TILE_SIZE);
 my $tilemaxx = int(($maxx+1)/TILE_SIZE);
@@ -115,7 +127,6 @@ my $res = $image->Write("png8:".TARGET_FOLDER."/$filename");
 
 # We skip any warnings here. When working under WinXP, there are many warnings with PNG8 format.
 # Looks like some of them are bugs in IM: http://www.wizards-toolkit.org/discourse-server/viewtopic.php?f=3&t=16490
-# TODO: update ImageMagick
 die "$res" if "$res" =~ /error/;
 
 (my $mapFilename = $filename) =~ s/\.png$/.map/;
@@ -127,8 +138,7 @@ close $MAPFILE;
 my $outResult;
 $outResult->{map_filename} = "sheet_${prefix}.map";
 $outResult->{pic_filename} = "sheet_${prefix}.png";
-# $res->{debug} = "$density $lenx $leny" . $w/$lenx . " " . $h/$leny;
-# print "sheet_${prefix}.png";
+$outResult->{debug} = "Request ID: $requestID";
 print to_json( $outResult );
 
 sub getTileFilename

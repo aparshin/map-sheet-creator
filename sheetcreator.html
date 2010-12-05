@@ -23,6 +23,7 @@
             var gTestPolyline = {};
             var gSheetController = {};
             var gMapLayoutWidget = {};
+            var gLogger = {};
             
             var MAP_HOST_NAME = 'http://188.127.225.240';
             
@@ -77,6 +78,8 @@
                                 
                 var curLogger = new DivLogger();
                 //var curLogger = new NullLogger();
+                
+                gLogger = curLogger;
                     
                 gMapLayoutWidget = new MapLayoutWidget(map, serverNamesMap);
                 gSheetController = new SheetController( map, curLogger );
@@ -95,7 +98,7 @@
                                        .append($('<br/>'))
                                        .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
                     
-                    if (data.debug) curLogger.message("Debug from server: " + data.debug);
+                    if (data.debug) gLogger.message("Debug from server: " + data.debug);
                 }, error: function(request, textStatus, error){
                     alert("Error at server!\nStatus: " + textStatus + "\nError: " + error);
                 }});

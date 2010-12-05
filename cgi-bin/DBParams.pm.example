@@ -1,0 +1,12 @@
+package DBParams;
+
+use Exporter;
+
+use constant DB_LOCATION => 'DBI:mysql:<enter_database_name>:localhost';
+use constant DB_NAME     => '<enter_user_name>';
+use constant DB_PASS     => '<enter_user_pass>';
+
+@ISA = ('Exporter');
+@EXPORT = qw(DB_LOCATION DB_NAME DB_PASS); 
+
+1;
