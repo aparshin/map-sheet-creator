@@ -13,6 +13,8 @@
 #  * map_filename - local name of generated map file
 #  *[optional] debug - Any debug information
 #
+# In case of any errors, the only field 'error' with error description will be passed using JSON.
+#
 # Files (both picture and map) will be generated in folder '../sheets'
 # Supports, that maps are in folders '../../maps/slazav/' and '../../maps/arbalet/'
 
@@ -31,6 +33,8 @@ use constant TARGET_FOLDER => '../sheets';
 
 my $query = new CGI;
 $query->charset('utf-8');
+print $query->header;
+
 my $minx = $query->param('minx');
 my $maxx = $query->param('maxx');
 my $miny = $query->param('miny');
@@ -38,6 +42,9 @@ my $maxy = $query->param('maxy');
 my $zoom = $query->param('zoom');
 my $lenx = $query->param('lenx');
 my $leny = $query->param('leny');
+
+if ( $minx >= $maxx ) { printError('minx is greater than or equal to maxx'); exit; };
+if ( $miny >= $maxy ) { printError('miny is greater than or equal to maxy'); exit; };
 
 my @maps = split( ",", $query->param('map_layout') );
 
@@ -72,7 +79,6 @@ my $tilemaxy = int(($maxy+1)/TILE_SIZE);
 my $globalShiftX = $minx % TILE_SIZE;
 my $globalShiftY = $miny % TILE_SIZE;
 
-print $query->header;
 
 my $w = $maxx - $minx +1;
 my $h = $maxy - $miny +1;
@@ -191,4 +197,9 @@ sub printMapFile
     print $hbuffer "MMPLL,3, ".$sw->[0].", ".$sw->[1]."\n";
     print $hbuffer "MMPLL,4, ".$se->[0].", ".$se->[1]."\n";
     print $hbuffer "MM1B,$scale";
+}
+
+sub printError
+{
+    print to_json( {error => $_[0]} );
 }

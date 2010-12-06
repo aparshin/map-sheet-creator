@@ -365,7 +365,7 @@ MapLayoutWidget = function( map, namesMap )
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// Loggers /////////////////////////////////////
+////////////////////////////////// Sheet //////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 //Data model. Represets all properties of one sheet of the map 
 //
@@ -402,11 +402,7 @@ DivLogger = function()
         m_logDiv.prepend( message + "<br>" );
     }
     
-    var m_logDiv = $('<div></div>').addClass('ui-widget-content')
-        .css({border: 'solid', position:'absolute', overflow:'auto', 
-              width: '300px', height: '200px', top: 0, left: 100, zIndex: 2500});
-        
-    // $("#sheet_container").append(m_logDiv.get(0));
+    var m_logDiv = $('<div></div>').addClass('ui-widget-content divLoggerDiv');
     $("body").append(m_logDiv.get(0));
     
 };

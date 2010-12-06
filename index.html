@@ -76,13 +76,17 @@
                 var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
                 map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
                                 
-                var curLogger = new DivLogger();
-                //var curLogger = new NullLogger();
+                // var curLogger = new DivLogger();
+                var curLogger = new NullLogger();
                 
                 gLogger = curLogger;
                     
                 gMapLayoutWidget = new MapLayoutWidget(map, serverNamesMap);
                 gSheetController = new SheetController( map, curLogger );
+                
+                //layout
+                $("#renderWidget").outerWidth( $("#sheetOptionsWidgetContainer").outerWidth() );
+                $("#renderWidget").css( { bottom: $("#sheetOptionsWidgetContainer").outerHeight()} );
             }
             
             function renderSheet()
@@ -94,6 +98,12 @@
                 //alert(mapLayoutData);
                 $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", success: function(data)
                 {
+                    if (data.error)
+                    {
+                        alert("Error during rendering: " + data.error);
+                        return;
+                    }
+                    
                     $('#download_link').html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
                                        .append($('<br/>'))
                                        .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
@@ -109,29 +119,11 @@
     <body onload="initialize()" onunload="GUnload()" style="margin:0; padding:0; overflow:hidden;">
         <div id="map_canvas" style="width: 100%; height: 100%; margin:0; padding:0; overflow:hidden;"></div>
         <div id="renderWidget" class="ui-widget-content">
-                <form><input type="button" value="Render" onclick="renderSheet();"></form>
+                <form><input type="button" value="Render Sheet" onclick="renderSheet();" style="width:100%" ></form>
                 <p id="download_link"></p>
         </div>
         
         <!--#include virtual="sheet_options_widget.html" -->
 
-        <!--
-        <div id="mapLayoutWidgetContainer">
-            <table><tr>
-                <td>
-                    <ul id = "available_maps">
-                        <li>Slazav Map</li>
-                        <li>Arbalet Map</li>
-                        <li>Google Map</li>
-                    </ul>
-                </td>
-                <td width="50%">
-                    <ul id = "maps_layout">
-                        <li></li>
-                    </ul>
-                </td>
-            </tr></table>
-        </div>
-        -->
     </body>
 </html>
