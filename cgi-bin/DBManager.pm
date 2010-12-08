@@ -1,4 +1,6 @@
 package DBManager;
+# Contains all the operations with DB.
+# Provides interface for relative operations.
 
 use DBParams;
 
@@ -17,6 +19,7 @@ sub dbh
     return $singleton_dbh;
 }
 
+# TODO: process errors more correct
 sub registerRequest
 {
     my $p = $_[0];

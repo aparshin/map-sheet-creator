@@ -1,4 +1,4 @@
-#!/usr/bin/perl -wT -I .
+#!/usr/bin/perl -wT
 
 # Combines tiles into single picture and saves it to disk (as 8-bit PNG). Map file for OziExplorer is also constructed.
 # Input parameters:
@@ -18,6 +18,8 @@
 # Files (both picture and map) will be generated in folder '../sheets'
 # Supports, that maps are in folders '../../maps/slazav/' and '../../maps/arbalet/'
 
+use lib '.';
+
 use strict;
 use CGI ':standard';
 use CGI::Carp qw ( fatalsToBrowser ); 
@@ -26,10 +28,20 @@ use JSON;
 use POSIX;
 
 use DBManager;
+use Logger;
 
 use constant TILE_SIZE     => 256;
 use constant TILE_FOLDERS  => {slazav => '../../maps/slazav/', arbalet => '../../maps/arbalet/'};
-use constant TARGET_FOLDER => '../sheets';
+use constant TARGET_FOLDER => '../sheets'; # Folder, where rendered sheets and map files will be rendered.
+use constant MAX_PIXELS => 12000000; # Maximum number of pixels in the rendered picture.
+
+my $logger = new Logger();
+# We are going to print error as JSON and exit each time we get error
+# Add corresponding callback to logger
+$logger->addErrorCallback(sub{
+    print to_json( {error => $_[0]} ); 
+    exit();
+});
 
 my $query = new CGI;
 $query->charset('utf-8');
@@ -43,10 +55,23 @@ my $zoom = $query->param('zoom');
 my $lenx = $query->param('lenx');
 my $leny = $query->param('leny');
 
-if ( $minx >= $maxx ) { printError('minx is greater than or equal to maxx'); exit; };
-if ( $miny >= $maxy ) { printError('miny is greater than or equal to maxy'); exit; };
+$logger->error( 'minx is greater than or equal to maxx') if $minx >= $maxx;
+$logger->error( 'miny is greater than or equal to maxy') if $miny >= $maxy;
+$logger->error( 'zoom is less than zero') if $zoom < 0;
 
 my @maps = split( ",", $query->param('map_layout') );
+
+$logger->error('Map layers are not defined') unless scalar @maps;
+
+my $w = $maxx - $minx +1;
+my $h = $maxy - $miny +1;
+
+if ($w*$h > MAX_PIXELS)
+{
+    # printErrorJSON($logger, 'Map sheet is too big. It contains '.($w*$h).' pixels. Maximum number of pixels is '.MAX_PIXELS); 
+    $logger->error('Map sheet is too big. It contains '.($w*$h).' pixels. Maximum number of pixels is '.MAX_PIXELS); 
+    exit;
+}
 
 my @nePoint = $query->param('ne[]');
 my @nwPoint = $query->param('nw[]');
@@ -64,6 +89,8 @@ my $requestID = DBManager::registerRequest({
                                  sw_lon => $swPoint[1], sw_lat => $swPoint[0]
                                });
 
+$logger->log("Request ID: $requestID");
+                               
 DBManager::addRequestLayers( $requestID, \@maps );
 # my $miny = 324*256+210;
 # my $maxy = 325*256+130;
@@ -79,13 +106,10 @@ my $tilemaxy = int(($maxy+1)/TILE_SIZE);
 my $globalShiftX = $minx % TILE_SIZE;
 my $globalShiftY = $miny % TILE_SIZE;
 
-
-my $w = $maxx - $minx +1;
-my $h = $maxy - $miny +1;
 my $size = "${w}x${h}";
 my $density =  ceil($w/$lenx) . "x" . ceil($h/$leny);
 
-my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', density => $density, colors => 255);
+my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', transparent => 'transparent', density => $density, colors => 255);
 $image->ReadImage('xc:transparent');
 
 for my $x ($tileminx..$tilemaxx)
@@ -143,11 +167,18 @@ open $MAPFILE, ">:crlf", TARGET_FOLDER."/$mapFilename";
 printMapFile(\@nwPoint, \@nePoint, \@sePoint, \@swPoint, $filename, $w, $h, int($w/$lenx), $MAPFILE);
 close $MAPFILE;
 
+# $logger->log('Test server log');
+
 my $outResult;
 $outResult->{map_filename} = "sheet_${prefix}.map";
 $outResult->{pic_filename} = "sheet_${prefix}.png";
-$outResult->{debug} = "Request ID: $requestID";
+$outResult->{debug} = $logger->getLogs;
 print to_json( $outResult );
+
+sub isValidMapname
+{
+    return exists TILE_FOLDERS->{$_[0]};
+}
 
 sub getTileFilename
 {
@@ -176,7 +207,6 @@ sub printMapFile
     print $hbuffer "Reserved 1\n";
     print $hbuffer "Reserved 2\n";
     print $hbuffer "Magnetic Variation,,,E\n";
-    # print $hbuffer "Map Projection,Transverse Mercator,PolyCal,No,AutoCalOnly,No,BSBUseWPX,No\n";
     print $hbuffer "Map Projection,Mercator,PolyCal,No,AutoCalOnly,No,BSBUseWPX,No\n";
     print $hbuffer printCalibrationPointToMapfile("01", 0,    0,    $nw->[0], $nw->[1]) . "\n";
     print $hbuffer printCalibrationPointToMapfile("02", $w-1, 0,    $ne->[0], $ne->[1]) . "\n";
@@ -199,7 +229,9 @@ sub printMapFile
     print $hbuffer "MM1B,$scale";
 }
 
-sub printError
-{
-    print to_json( {error => $_[0]} );
-}
+# Synopsis: printErrorJSON( logger, errorMessage )
+# Prepares JSON string with error description.
+# sub printErrorJSON
+# {
+    # print to_json( {error => $_[0]} );
+# }

@@ -1,3 +1,7 @@
+// Maximum number of pixels in the rendered sheet.
+// TODO: this constant should be synchronized with server. Read it from server?
+var MAX_PIXELS = 12000000;
+
 ///////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// Map Manager ///////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -286,23 +290,27 @@ SheetOptionsWidget = function( container, logger )
         $("#sow_sizey", m_container).val( isAlbom ? sizex : sizey );
     }
     
-    this.setMapPixelSizes = function(sizeX, sizeY)
+    //pixelsX - width of sheet (pixels)
+    //pixelsY - height of sheet (pixels)
+    this.setMapPixelSizes = function(pixelsX, pixelsY)
     {
-        var dpi = Math.round((sizeX/m_sheetOptions.m_sizeX + sizeY/m_sheetOptions.m_sizeY)/2*INCH2CM);
-        // var dpi = (sizeX/m_sheetOptions.m_sizeX + sizeY/m_sheetOptions.m_sizeY)/2*INCH2CM;
-        // var dpi_x = sizeX/m_sheetOptions.m_sizeX*INCH2CM;
-        // var dpi_y = sizeY/m_sheetOptions.m_sizeY*INCH2CM;
-        $("#sow_final_sheet_options", m_container).text( sizeX + "x" + sizeY + " pixels, " + dpi + " dpi" );
+        //TODO: dpi can be calculated by the Sheet class
+        var dpi = Math.round((pixelsX/m_sheetOptions.m_sizeX + pixelsY/m_sheetOptions.m_sizeY)/2*INCH2CM);
+        $("#sow_final_sheet_options", m_container).text( pixelsX + "x" + pixelsY + " pixels, " + dpi + " dpi" );
+        
+        if (pixelsX*pixelsY > MAX_PIXELS)
+            $("#sow_final_sheet_options", m_container).addClass("too_big_sheet").append(" (too big)")
+        else
+            $("#sow_final_sheet_options", m_container).removeClass("too_big_sheet");
+            
     }
     
     //return clone of current sheet options
     this.getSheetOptions = function(){ return m_sheetOptions.clone(); };
-    
-    //this.forceUpdate = function(){ updateSheetOptionsFromWidget(); };
-    
+
     var DEFAULT_SCALE = 500;
     var INCH2CM = 2.54;
-    
+
     var m_container = container;
     var m_sheetOptions = new SheetOptions();
     var m_logger = logger;
@@ -314,9 +322,9 @@ SheetOptionsWidget = function( container, logger )
     
     updateSizesFromSizePreset('A4');
     $("#sow_scale", m_container).val(DEFAULT_SCALE); 
-    
+
     updateSheetOptionsFromWidget();
-    
+
     $("#sow_albom, #sow_portr", m_container).bind("change", function()
     {
         m_logger.message("Orientation change event");
@@ -359,7 +367,6 @@ MapLayoutWidget = function( map, namesMap )
         for ( var k = 0; k < map.layers.length; k++ )
             if ( map.layers[k].name in namesMap )
                 serverNames.push( namesMap[map.layers[k].name] );
-        //return "arbalet,slazav";
         return serverNames.join(',');
     };
 }

@@ -76,8 +76,8 @@
                 var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
                 map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
                                 
-                // var curLogger = new DivLogger();
-                var curLogger = new NullLogger();
+                var curLogger = new DivLogger();
+                //var curLogger = new NullLogger();
                 
                 gLogger = curLogger;
                     
@@ -91,16 +91,28 @@
             
             function renderSheet()
             {
-                $('#download_link').text('Rendering in process...');
                 var renderData = gSheetController.getSheetData();
+                
+                //TODO: move check to Sheet class
+                var sizeX = renderData.maxx - renderData.minx + 1;
+                var sizeY = renderData.maxy - renderData.miny + 1;
+                if (sizeX*sizeY > MAX_PIXELS)
+                {
+                    alert('Too big sheet! Limit is ' + MAX_PIXELS + ' pixels');
+                    return;
+                }
+                
                 var mapLayoutData = gMapLayoutWidget.getMapLayout();
                 renderData['map_layout'] = mapLayoutData;
-                //alert(mapLayoutData);
+                
+                $('#download_link').text('Rendering in process...');
+                
                 $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", success: function(data)
                 {
                     if (data.error)
                     {
                         alert("Error during rendering: " + data.error);
+                        $('#download_link').empty();
                         return;
                     }
                     
@@ -108,9 +120,10 @@
                                        .append($('<br/>'))
                                        .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
                     
-                    if (data.debug) gLogger.message("Debug from server: " + data.debug);
+                    if (data.debug) gLogger.message("Debug from server: <br/><i>" + data.debug.join('<br/>') + '</i>');
                 }, error: function(request, textStatus, error){
                     alert("Error at server!\nStatus: " + textStatus + "\nError: " + error);
+                    $('#download_link').empty();
                 }});
             }
         </script>
