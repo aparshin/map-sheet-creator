@@ -1,7 +1,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-        <title>Map Sheets Composer</title>
+        <title>Map Sheets Creator</title>
 
         <link type="text/css" href="thirdparty/css/no-theme/jquery-ui-1.8.5.custom.css" rel="stylesheet" />	
 		<script type="text/javascript" src="js/jquery-1.4.2.min.js"          ></script>
@@ -26,6 +26,15 @@
             var gLogger = {};
             
             var MAP_HOST_NAME = 'http://188.127.225.240';
+            
+            function showAboutPage(event)
+            {
+                $('#aboutWindow').dialog({width:700, 
+                                    modal: true, 
+                                    title: 'About',
+                                    zindex: 30000});
+            }
+                        
             
             function get_my_url (bounds) {
                 var res = this.map.getResolution();
@@ -76,8 +85,8 @@
                 var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
                 map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
                                 
-                var curLogger = new DivLogger();
-                //var curLogger = new NullLogger();
+                //var curLogger = new DivLogger();
+                var curLogger = new NullLogger();
                 
                 gLogger = curLogger;
                     
@@ -137,6 +146,31 @@
         </div>
         
         <!--#include virtual="sheet_options_widget.html" -->
-
+        
+        <div id="aboutButton" onclick="showAboutPage();">About</div>
+        <div id="aboutWindow">
+            <H3>Map Sheet Creator</H3>
+            <p>Compose printable map sheets from map tiles.</p>
+            <H3>Contacts</H3>
+            <p>
+                I will be glad to any bug reports, suggestions or notes about this project. You can
+                <ul>
+                    <li>Write me e-mail to <a href="mailto:parshin.alexander@gmail.com">parshin.alexander@gmail.com</a></li>
+                    <li>Post new ticket in <a href="/trac">project trac</a></li>
+                </ul>
+            </p>
+            <H3>Thanks</H3>
+            <ul>
+                <li>To Alexander Zibrov for suggestions, great ideas and interest</li>
+                <li>To Vladislav Zavjalov for <a href="http://slazav.mccme.ru/maps/">great Moscow Region maps</a></li>
+                <li>To Dmitrij Zhurakovskij for scanned sheets of Arbalet maps</li>
+            </ul>
+            
+            <H3>Change Log</H3>
+            <ul>
+                <li>v1.0 beta (15.12.2010) Initial version
+            </ul>
+        </div>
+       
     </body>
 </html>
