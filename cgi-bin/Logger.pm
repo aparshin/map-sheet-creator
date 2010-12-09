@@ -1,4 +1,7 @@
 package Logger;
+# Stores logs, warning and error lists
+# Manages subscription of receiving new message
+# Synipsis of the callback function: 'callback(message)'
 
 sub new
 {

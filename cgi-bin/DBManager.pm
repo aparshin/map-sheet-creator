@@ -19,7 +19,8 @@ sub dbh
     return $singleton_dbh;
 }
 
-# TODO: process errors more correct
+# use eval() to handle errors
+# return ID of request
 sub registerRequest
 {
     my $p = $_[0];
@@ -35,12 +36,13 @@ sub registerRequest
     return $id;
 }
 
-sub changeRequestStatus
-{
-    my ($id, $status) = @_;
-    my $sth = dbh->do("UPDATE request SET status = $status WHERE id = $id");
-}
+# sub changeRequestStatus
+# {
+    # my ($id, $status) = @_;
+    # my $sth = dbh->do("UPDATE request SET status = $status WHERE id = $id");
+# }
 
+# use eval() to handle errors
 sub addRequestLayers
 {
     my ($id, $layers) = @_;

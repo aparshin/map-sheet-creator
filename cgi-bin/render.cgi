@@ -29,11 +29,12 @@ use POSIX;
 
 use DBManager;
 use Logger;
+use MapManager;
 
-use constant TILE_SIZE     => 256;
-use constant TILE_FOLDERS  => {slazav => '../../maps/slazav/', arbalet => '../../maps/arbalet/'};
+use constant TILE_SIZE     => 256;         # Size of one tile (pixels)
 use constant TARGET_FOLDER => '../sheets'; # Folder, where rendered sheets and map files will be rendered.
-use constant MAX_PIXELS => 12000000; # Maximum number of pixels in the rendered picture.
+use constant MAX_PIXELS => 12000000;       # Maximum number of pixels in the rendered picture.
+my $res;
 
 my $logger = new Logger();
 # We are going to print error as JSON and exit each time we get error
@@ -59,18 +60,30 @@ $logger->error( 'minx is greater than or equal to maxx') if $minx >= $maxx;
 $logger->error( 'miny is greater than or equal to maxy') if $miny >= $maxy;
 $logger->error( 'zoom is less than zero') if $zoom < 0;
 
-my @maps = split( ",", $query->param('map_layout') );
+my @originalMaps = split( ",", $query->param('map_layout') );
 
-$logger->error('Map layers are not defined') unless scalar @maps;
+my @maps;
+for my $curMapName (@originalMaps)
+{
+    unless ( MapManager::isValidMapname( $curMapName ) )
+    {
+        $logger->warning('Unknown map name: $curMapName');
+    }
+    else
+    {
+        push @maps, $curMapName;
+    }
+}
+
+$logger->error('There are no map layers to render') unless scalar @maps;
 
 my $w = $maxx - $minx +1;
 my $h = $maxy - $miny +1;
 
-if ($w*$h > MAX_PIXELS)
+my $numPixels = $w*$h;
+if ($numPixels > MAX_PIXELS)
 {
-    # printErrorJSON($logger, 'Map sheet is too big. It contains '.($w*$h).' pixels. Maximum number of pixels is '.MAX_PIXELS); 
-    $logger->error('Map sheet is too big. It contains '.($w*$h).' pixels. Maximum number of pixels is '.MAX_PIXELS); 
-    exit;
+    $logger->error('Map sheet is too big. It contains '. $numPixels .' pixels. Maximum number of pixels is ' . MAX_PIXELS);
 }
 
 my @nePoint = $query->param('ne[]');
@@ -78,20 +91,30 @@ my @nwPoint = $query->param('nw[]');
 my @sePoint = $query->param('se[]');
 my @swPoint = $query->param('sw[]');
 
-my $requestID = DBManager::registerRequest({
-                                 minx => $minx, maxx=> $maxx, 
-                                 miny => $miny, maxy=> $maxy, 
-                                 zoom => $zoom, 
-                                 sizex => $lenx, sizey => $leny, 
-                                 ne_lon => $nePoint[1], ne_lat => $nePoint[0],
-                                 nw_lon => $nwPoint[1], nw_lat => $nwPoint[0],
-                                 se_lon => $sePoint[1], se_lat => $sePoint[0],
-                                 sw_lon => $swPoint[1], sw_lat => $swPoint[0]
-                               });
+$logger->error("Incorrec parameter 'ne'") unless isValidLatLon(\@nePoint);
+$logger->error("Incorrec parameter 'nw'") unless isValidLatLon(\@nwPoint);
+$logger->error("Incorrec parameter 'se'") unless isValidLatLon(\@sePoint);
+$logger->error("Incorrec parameter 'sw'") unless isValidLatLon(\@swPoint);
+
+my $requestID;
+eval {
+    $requestID = DBManager::registerRequest({
+                                     minx => $minx, maxx=> $maxx, 
+                                     miny => $miny, maxy=> $maxy, 
+                                     zoom => $zoom, 
+                                     sizex => $lenx, sizey => $leny, 
+                                     ne_lon => $nePoint[1], ne_lat => $nePoint[0],
+                                     nw_lon => $nwPoint[1], nw_lat => $nwPoint[0],
+                                     se_lon => $sePoint[1], se_lat => $sePoint[0],
+                                     sw_lon => $swPoint[1], sw_lat => $swPoint[0]
+                                   }) 
+};
+$logger->error('Error during registrating request in DB: '.$@) if $@; 
 
 $logger->log("Request ID: $requestID");
-                               
-DBManager::addRequestLayers( $requestID, \@maps );
+
+eval { DBManager::addRequestLayers( $requestID, \@maps ); };
+$logger->error('Error during adding request layers in DB: '.$@) if $@; 
 # my $miny = 324*256+210;
 # my $maxy = 325*256+130;
 # my $minx = 618*256+107;
@@ -110,7 +133,8 @@ my $size = "${w}x${h}";
 my $density =  ceil($w/$lenx) . "x" . ceil($h/$leny);
 
 my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', transparent => 'transparent', density => $density, colors => 255);
-$image->ReadImage('xc:transparent');
+$res = $image->ReadImage('xc:transparent');
+$logger->error($res) if $res;
 
 for my $x ($tileminx..$tilemaxx)
 {
@@ -118,11 +142,10 @@ for my $x ($tileminx..$tilemaxx)
     {
         for my $curMapname (@maps)
         {
-            my $tileFilename = getTileFilename( $curMapname, $x, $y, $zoom );
+            my $tileFilename = MapManager::getTileFilename( $curMapname, $x, $y, $zoom ) or $logger->error('Error constructing filename');
             next unless -e $tileFilename;
             
             my $curImage = new Image::Magick; 
-            my $res;
             $res = $curImage->Read($tileFilename);
             die "$res" if "$res";
 
@@ -138,24 +161,22 @@ for my $x ($tileminx..$tilemaxx)
             
             if ( $xstart > 0 || $ystart > 0 || $xstop < 255 || $ystop < 255 )
             {
-                $curImage->Crop( x => $xstart, y => $ystart, width => $xstop - $xstart + 1, height => $ystop - $ystart + 1);
+                $res = $curImage->Crop( x => $xstart, y => $ystart, width => $xstop - $xstart + 1, height => $ystop - $ystart + 1);
+                die "$res" if "$res";
             }
             
             $res = $image->Composite( image => $curImage, 
                                       x => ($x-$tileminx)*TILE_SIZE + $xstart - $globalShiftX, 
                                       y => ($y-$tileminy)*TILE_SIZE + $ystart - $globalShiftY );
             die "$res" if "$res";
-            # last;
             # TODO: optimize composing, check number of transparent pixels!
         }
     }
 }
 
-# my $prefix = 0;
-# while ( -e TARGET_FOLDER."/sheet_${prefix}.png" ) {$prefix++;};
 my $prefix = $requestID;
 my $filename = "sheet_${prefix}.png";
-my $res = $image->Write("png8:".TARGET_FOLDER."/$filename");
+$res = $image->Write("png8:".TARGET_FOLDER."/$filename");
 
 # We skip any warnings here. When working under WinXP, there are many warnings with PNG8 format.
 # Looks like some of them are bugs in IM: http://www.wizards-toolkit.org/discourse-server/viewtopic.php?f=3&t=16490
@@ -163,11 +184,10 @@ die "$res" if "$res" =~ /error/;
 
 (my $mapFilename = $filename) =~ s/\.png$/.map/;
 my $MAPFILE;
-open $MAPFILE, ">:crlf", TARGET_FOLDER."/$mapFilename";
-printMapFile(\@nwPoint, \@nePoint, \@sePoint, \@swPoint, $filename, $w, $h, int($w/$lenx), $MAPFILE);
+open $MAPFILE, ">:crlf", TARGET_FOLDER."/$mapFilename" or $logger->error('Error opening file to save rendered sheet');
+printMapFile(\@nwPoint, \@nePoint, \@sePoint, \@swPoint, $filename, $w, $h, int($w/$lenx), $MAPFILE) 
+    or $logger->error('Error saving map file');
 close $MAPFILE;
-
-# $logger->log('Test server log');
 
 my $outResult;
 $outResult->{map_filename} = "sheet_${prefix}.map";
@@ -175,15 +195,14 @@ $outResult->{pic_filename} = "sheet_${prefix}.png";
 $outResult->{debug} = $logger->getLogs;
 print to_json( $outResult );
 
-sub isValidMapname
+# Syntax: isValidLatLon(\@latlon) -> bool
+# latlon is 2-elements array (lat, lon)
+sub isValidLatLon
 {
-    return exists TILE_FOLDERS->{$_[0]};
-}
-
-sub getTileFilename
-{
-    my ($mapname, $x, $y, $z) = @_;
-    return TILE_FOLDERS->{$mapname} . "Z${z}/${y}_${x}.png";
+    my $latlon = $_[0];
+    return scalar @$latlon == 2 and 
+           $$latlon[0] >= -90  and $$latlon[0] <= 90 and 
+           $$latlon[1] >= -180 and $$latlon[1] <= 180;
 }
 
 sub printCalibrationPointToMapfile
@@ -227,11 +246,6 @@ sub printMapFile
     print $hbuffer "MMPLL,3, ".$sw->[0].", ".$sw->[1]."\n";
     print $hbuffer "MMPLL,4, ".$se->[0].", ".$se->[1]."\n";
     print $hbuffer "MM1B,$scale";
+    
+    return 1;
 }
-
-# Synopsis: printErrorJSON( logger, errorMessage )
-# Prepares JSON string with error description.
-# sub printErrorJSON
-# {
-    # print to_json( {error => $_[0]} );
-# }
