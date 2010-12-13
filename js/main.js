@@ -230,6 +230,12 @@ SheetController = function( map, logger )
                 se: [se.lat, se.lon], 
                 sw: [sw.lat, sw.lon] };
     };
+    
+    //TODO: move this function to class Sheet later
+    this.isDataValid = function()
+    {
+        return m_sheetOptionsWidget.getSheetOptions().isDataValid();
+    }
 
     var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
     var m_logger = logger;
@@ -256,9 +262,17 @@ SheetOptions = function()
     
     this.m_sizeX = NaN; //centimeters
     this.m_sizeY = NaN; //centimeters
-    this.m_scale = NaN; //map's zoom level (13, 14, etc)
-    this.m_resolution = NaN; // meters per centimeter
+    this.m_scale = NaN; // meters per centimeter
+    this.m_resolution = NaN; //map's zoom level (13, 14, etc)
     this.m_orientation = NaN; // 1 - albom, 2 - portrait
+    
+    this.isDataValid = function()
+    {
+        return (!isNaN(this.m_sizeX) && this.m_sizeX > 0) && 
+               (!isNaN(this.m_sizeY) && this.m_sizeY > 0) &&
+               (!isNaN(this.m_scale) && this.m_scale > 0) &&
+                !isNaN(this.m_resolution) && !isNaN(this.m_orientation);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -267,6 +281,21 @@ SheetOptions = function()
 //Trigger events: change
 SheetOptionsWidget = function( container, logger )
 {
+    var updateWidgetFromSheetOptions = function()
+    {
+        var toggleErrorClass = function(cond, elemID)
+        {
+            if ( cond )
+                $(elemID, m_container).addClass("sowErrorValue");
+            else 
+                $(elemID, m_container).removeClass("sowErrorValue");
+        }
+        
+        toggleErrorClass( isNaN(m_sheetOptions.m_sizeX) || m_sheetOptions.m_sizeX <= 0, "#sow_sizex" );
+        toggleErrorClass( isNaN(m_sheetOptions.m_sizeY) || m_sheetOptions.m_sizeY <= 0, "#sow_sizey" );
+        toggleErrorClass( isNaN(m_sheetOptions.m_scale) || m_sheetOptions.m_scale <= 0, "#sow_scale" );
+    }
+    
     var updateSheetOptionsFromWidget = function()
     {
         m_sheetOptions.m_orientation = $("#sow_albom", m_container).attr("checked") ? 1 : 2;
@@ -277,6 +306,8 @@ SheetOptionsWidget = function( container, logger )
         m_logger.message('Updating sheet options: '+ m_sheetOptions.m_orientation + ',' + 
             m_sheetOptions.m_sizeX + ',' + m_sheetOptions.m_sizeY + ',' + 
             m_sheetOptions.m_scale + ',' + m_sheetOptions.m_resolution);
+            
+        updateWidgetFromSheetOptions();    
         $(m_this).trigger("change");
     }
     

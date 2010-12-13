@@ -100,6 +100,12 @@
             
             function renderSheet()
             {
+                if ( !gSheetController.isDataValid() )
+                {
+                    alert("Enter correct sheet options!");
+                    return;
+                }
+                
                 var renderData = gSheetController.getSheetData();
                 
                 //TODO: move check to Sheet class
