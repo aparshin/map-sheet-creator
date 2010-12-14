@@ -396,7 +396,7 @@ MapLayoutWidget = function( map, namesMap )
     {
         var serverNames = [];
         for ( var k = 0; k < map.layers.length; k++ )
-            if ( map.layers[k].name in namesMap )
+            if ( map.layers[k].name in namesMap && map.layers[k].visibility )
                 serverNames.push( namesMap[map.layers[k].name] );
         return serverNames.join(',');
     };
