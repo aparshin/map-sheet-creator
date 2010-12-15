@@ -427,6 +427,105 @@ MapLayoutWidget = function( map, namesMap )
     // {
     // }
 // }
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// Render Widget ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+constructRenderData = function( sheetController, mapLayoutWidget )
+{
+    if ( !sheetController.isDataValid() )
+    {
+        alert("Enter correct sheet options!");
+        return;
+    }
+            
+    var renderData = sheetController.getSheetData();
+    
+    //TODO: move check to Sheet class
+    var sizeX = renderData.maxx - renderData.minx + 1;
+    var sizeY = renderData.maxy - renderData.miny + 1;
+    if (sizeX*sizeY > MAX_PIXELS)
+    {
+        alert('Too big sheet! Limit is ' + MAX_PIXELS + ' pixels');
+        return;
+    }
+    
+    var mapLayoutData = mapLayoutWidget.getMapLayout();
+    renderData['map_layout'] = mapLayoutData;
+    return renderData;
+}
+
+RenderWidget = function( sheetController, mapLayoutWidget, logger )
+{    
+    var renderSheet = function()
+    {
+        var renderData = constructRenderData( m_sheetController, m_mapLayoutWidget );
+        if (!renderData) return;
+        
+        var downloadLink = $('#download_link', m_renderDiv);
+        downloadLink.text('Rendering in process...');
+        
+        $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", success: function(data)
+        {
+            if (data.error)
+            {
+                alert("Error during rendering: " + data.error);
+                downloadLink.empty();
+                return;
+            }
+            
+            downloadLink.html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
+                               .append($('<br/>'))
+                               .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
+            
+            if (data.debug) m_logger.message("Debug from server: <br/><i>" + data.debug.join('<br/>') + '</i>');
+        }, error: function(request, textStatus, error){
+            alert("Error at server!\nStatus: " + textStatus + "\nError: " + error);
+            downloadLink.empty();
+        }});
+    }
+    
+    var m_sheetController = sheetController;
+    var m_mapLayoutWidget = mapLayoutWidget;
+    var m_renderDiv = $("#renderWidget");
+    var m_logger = logger;
+    var m_this = this;
+    
+    $("#renderButton", m_renderDiv).bind('click', renderSheet);
+}
+
+LoadRenderWidget = function( sheetController, mapLayoutWidget, logger )
+{
+    //var m_renderWidget = new RenderWidget( sheetController, mapLayoutWidget, logger );
+    
+    var m_renderDiv = $("#renderWidget");
+    m_renderDiv.height(600);
+    var RENDER_COUNT = 20;
+    // var m_currentlyRendered = 0;
+    var downloadLink = $('#download_link', m_renderDiv);
+    
+    var successedRender = function(data)
+    {
+        downloadLink.append($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
+                    .append($('<br/>'));
+    }
+    
+    var renderSheet = function()
+    {
+        var renderData = constructRenderData( sheetController, mapLayoutWidget );
+        if (!renderData) return;
+        
+        downloadLink.empty();
+        
+        for (var sh = 0; sh < RENDER_COUNT; sh++)
+            $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", 
+                    success: successedRender});
+        
+    }
+    
+    $("#renderButton", m_renderDiv).bind('click', renderSheet);
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Loggers /////////////////////////////////////

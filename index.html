@@ -24,6 +24,7 @@
             var gSheetController = {};
             var gMapLayoutWidget = {};
             var gLogger = {};
+            var gRender = {};
             
             var MAP_HOST_NAME = 'http://188.127.225.240';
             
@@ -31,7 +32,7 @@
             {
                 $('#aboutWindow').dialog({width:700, 
                                     modal: true, 
-                                    title: 'About',
+                                    title: 'Map Sheet Creator',
                                     zindex: 30000});
             }
                         
@@ -90,93 +91,32 @@
                 
                 gLogger = curLogger;
                     
-                gMapLayoutWidget = new MapLayoutWidget(map, serverNamesMap);
+                gMapLayoutWidget = new MapLayoutWidget( map, serverNamesMap );
                 gSheetController = new SheetController( map, curLogger );
+                //gRender = new LoadRenderWidget( gSheetController, gMapLayoutWidget, curLogger );
+                gRender = new RenderWidget( gSheetController, gMapLayoutWidget, curLogger );
                 
                 //layout
                 $("#renderWidget").outerWidth( $("#sheetOptionsWidgetContainer").outerWidth() );
                 $("#renderWidget").css( { bottom: $("#sheetOptionsWidgetContainer").outerHeight()} );
-            }
-            
-            function renderSheet()
-            {
-                if ( !gSheetController.isDataValid() )
-                {
-                    alert("Enter correct sheet options!");
-                    return;
-                }
-                
-                var renderData = gSheetController.getSheetData();
-                
-                //TODO: move check to Sheet class
-                var sizeX = renderData.maxx - renderData.minx + 1;
-                var sizeY = renderData.maxy - renderData.miny + 1;
-                if (sizeX*sizeY > MAX_PIXELS)
-                {
-                    alert('Too big sheet! Limit is ' + MAX_PIXELS + ' pixels');
-                    return;
-                }
-                
-                var mapLayoutData = gMapLayoutWidget.getMapLayout();
-                renderData['map_layout'] = mapLayoutData;
-                
-                $('#download_link').text('Rendering in process...');
-                
-                $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", success: function(data)
-                {
-                    if (data.error)
-                    {
-                        alert("Error during rendering: " + data.error);
-                        $('#download_link').empty();
-                        return;
-                    }
-                    
-                    $('#download_link').html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
-                                       .append($('<br/>'))
-                                       .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
-                    
-                    if (data.debug) gLogger.message("Debug from server: <br/><i>" + data.debug.join('<br/>') + '</i>');
-                }, error: function(request, textStatus, error){
-                    alert("Error at server!\nStatus: " + textStatus + "\nError: " + error);
-                    $('#download_link').empty();
-                }});
             }
         </script>
     </head>
 
     <body onload="initialize()" onunload="GUnload()" style="margin:0; padding:0; overflow:hidden;">
         <div id="map_canvas" style="width: 100%; height: 100%; margin:0; padding:0; overflow:hidden;"></div>
+        
         <div id="renderWidget" class="ui-widget-content">
-                <form><input type="button" value="Render Sheet" onclick="renderSheet();" style="width:100%" ></form>
+                <!-- <form><input id= "renderButton", type="button" value="Render Sheet" onclick="renderSheet();" style="width:100%" ></form> -->
+                <form><input id= "renderButton", type="button" value="Render Sheet" style="width:100%" ></form>
                 <p id="download_link"></p>
         </div>
         
-        <!--#include virtual="sheet_options_widget.html" -->
-        
         <div id="aboutButton" onclick="showAboutPage();">About</div>
-        <div id="aboutWindow">
-            <H3>Map Sheet Creator</H3>
-            <p>Compose printable map sheets from map tiles.</p>
-            <H3>Contacts</H3>
-            <p>
-                I will be glad to any bug reports, suggestions or notes about this project. You can
-                <ul>
-                    <li>Write me e-mail to <a href="mailto:parshin.alexander@gmail.com">parshin.alexander@gmail.com</a></li>
-                    <li>Post new ticket in <a href="/trac">project trac</a></li>
-                </ul>
-            </p>
-            <H3>Thanks</H3>
-            <ul>
-                <li>To Alexander Zibrov for suggestions, great ideas and interest</li>
-                <li>To Vladislav Zavjalov for <a href="http://slazav.mccme.ru/maps/">great Moscow Region maps</a></li>
-                <li>To Dmitrij Zhurakovskij for scanned sheets of Arbalet maps</li>
-            </ul>
-            
-            <H3>Change Log</H3>
-            <ul>
-                <li>v1.0 beta (15.12.2010) Initial version
-            </ul>
-        </div>
+        
+        <!--#include virtual="sheet_options_widget.html" -->
+        <!--#include virtual="about.html" -->
+        
        
     </body>
 </html>
