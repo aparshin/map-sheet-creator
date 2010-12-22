@@ -35,6 +35,14 @@
                                     title: 'Map Sheet Creator',
                                     zindex: 30000});
             }
+            
+            function showHelpPage(event)
+            {
+                $('#helpWindow').dialog({width:700, 
+                                    modal: true, 
+                                    title: 'Some instructions',
+                                    zindex: 30000});
+            }
                         
             
             function get_my_url (bounds) {
@@ -112,11 +120,14 @@
                 <p id="download_link"></p>
         </div>
         
-        <div id="aboutButton" onclick="showAboutPage();">About</div>
+        <div id = "buttonContainer">
+            <div id="aboutButton" onclick="showAboutPage();">About</div>
+            <div id="helpButton" onclick="showHelpPage();">Help</div>
+        </div>
         
         <!--#include virtual="sheet_options_widget.html" -->
         <!--#include virtual="about.html" -->
-        
+        <!--#include virtual="help.html" -->
        
     </body>
 </html>
