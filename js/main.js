@@ -474,9 +474,9 @@ RenderWidget = function( sheetController, mapLayoutWidget, logger )
                 return;
             }
             
-            downloadLink.html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
+            downloadLink.html($('<a></a>').attr({href: 'sheets/'+data.pic_filename, target: '_blank'}).text('Rendered picture file'))
                                .append($('<br/>'))
-                               .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
+                               .append($('<a></a>').attr({href: 'sheets/'+data.map_filename, target: '_blank'}).text('Rendered map file'));
             
             if (data.debug) m_logger.message("Debug from server: <br/><i>" + data.debug.join('<br/>') + '</i>');
         }, error: function(request, textStatus, error){
