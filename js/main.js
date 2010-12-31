@@ -96,8 +96,9 @@ MapManager = function(map, style)
 * mapManager {MapManager}: helper for rectangle visualization
 * center {OpenLayers.LonLat}
 * logger {ILogger}: object for log writing
+* sheet {Sheet}: data object
 */
-MapSheetRectangle = function(mapManager, center, logger)
+MapSheetRectangle = function(mapManager, center, logger, sheet)
 {
     //Updates coordinates of rectangle corners using center coordinates and size of rectangle (meters)
     var updateCornersFromCenter = function()
@@ -127,7 +128,10 @@ MapSheetRectangle = function(mapManager, center, logger)
     
     this.redraw = function()
     {
-        if (!m_ne || !m_sw) return;
+        var ne = m_sheet.get('ne');
+        var sw = m_sheet.get('sw');
+        if (!ne || !sw) return;
+        //if (!m_ne || !m_sw) return;
         
         var lonlatProjection = new OpenLayers.Projection("EPSG:4326");
         var rectangleBounds = new OpenLayers.Bounds();
@@ -160,12 +164,14 @@ MapSheetRectangle = function(mapManager, center, logger)
     var m_lengthY = 0;
     var m_ne = null;
     var m_sw = null;
+    var m_sheet = sheet;
     
     m_mapManager.setDragCompleteCallback( function(bounds)
     {
         //invariant of rectangle is its center and length (in meters). 
         //So, calculate center and estimate size of rectangle on screen
         m_center = m_mapManager.map2lonlat(bounds.getCenterLonLat());
+        sheet.set({center: m_center});
         
         updateCornersFromCenter();
         m_this.redraw();
@@ -239,13 +245,14 @@ SheetController = function( map, logger )
 
     var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
     var m_logger = logger;
-    var m_this = this;    
+    var m_this = this;
+    var m_sheet = new Sheet();
     
-    var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), logger );
+    var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), logger, m_sheet );
     $(m_sheetOptionsWidget).bind("change", onUpdateSheetOptions);
     
     var lonlatCenter = m_mapManager.map2lonlat( m_mapManager.getMap().getCenter() );
-    var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, lonlatCenter, logger );
+    var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, lonlatCenter, logger, m_sheet );
     
     $(m_mapSheetRectangle).bind('move', onRectangleMove);
     
@@ -279,7 +286,7 @@ SheetOptions = function()
 ///////////////////////////////// SheetOptionsWidget //////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 //Trigger events: change
-SheetOptionsWidget = function( container, logger )
+SheetOptionsWidget = function( container, logger, sheet )
 {
     var updateWidgetFromSheetOptions = function()
     {
@@ -306,7 +313,14 @@ SheetOptionsWidget = function( container, logger )
         m_logger.message('Updating sheet options: '+ m_sheetOptions.m_orientation + ',' + 
             m_sheetOptions.m_sizeX + ',' + m_sheetOptions.m_sizeY + ',' + 
             m_sheetOptions.m_scale + ',' + m_sheetOptions.m_resolution);
-            
+        
+        m_sheet.set({
+            size_x: m_sheetOptions.m_sizeX,
+            size_y: m_sheetOptions.m_sizeY,
+            scale: m_sheetOptions.m_scale,
+            resolution: m_sheetOptions.m_resolution
+        });
+        
         updateWidgetFromSheetOptions();    
         $(m_this).trigger("change");
     }
@@ -345,6 +359,7 @@ SheetOptionsWidget = function( container, logger )
     var m_container = container;
     var m_sheetOptions = new SheetOptions();
     var m_logger = logger;
+    var m_sheet = sheet;
     var m_this = this;
     
     var m_sizePresets = {};
@@ -415,18 +430,71 @@ MapLayoutWidget = function( map, namesMap )
 // - resolution (get/set)
 // - center (get/set)
 // - ne, sw (get)
-// Sheet = function()
-// {
-    // this.set = function(properties)
-    // {
-        
-        // $(m_this).trigger('change');
-    // }
+Sheet = function()
+{
+    this.set = function(properties)
+    {
+        var isChanged = false;
+        for (var propName in properties)
+            if (typeof ( m_data[propName] ) != 'undefined')
+            {
+                m_data[propName] = properties[ propName ];
+                m_bNeedUpdateCorners = true;
+                isChanged = true;
+            }
+            
+        if (isChanged) $(m_this).trigger('change');
+    }
     
-    // this.get = function(property)
-    // {
-    // }
-// }
+    this.get = function(property)
+    {
+        if ( typeof(m_data[property]) != 'undefined' ) return m_data[property];
+        if ( property == 'ne' || property == 'sw' )
+        {
+            updateCornersFromCenter();
+            return m_corners[property];
+        }
+    }
+    
+    //Updates coordinates of rectangle corners using center coordinates and size of rectangle (meters)
+    var updateCornersFromCenter = function()
+    {
+        if ( !m_bNeedUpdateCorners || !m_data.center || !m_data.size_x || !m_data.size_y) return;
+        
+        //TODO: OpenLayers.Util.destinationVincenty can be used here
+        var getDeltaLatLng = function(srcLat, distX, distY, outDelta)
+        {
+            var R = 6378137; //earth radius, meters
+            outDelta.dLat = distY/R;
+            
+            var tan2 = Math.tan(distX/R);
+            tan2 *= tan2;
+            var a = tan2/(1+tan2);
+            var cos2 = Math.cos(srcLat/180*Math.PI);
+            cos2 *= cos2;
+            outDelta.dLng = Math.asin(Math.sqrt(a/cos2));
+            
+            outDelta.dLat *= 180/Math.PI;
+            outDelta.dLng *= 180/Math.PI;
+        }
+        
+        var delta = {};
+        getDeltaLatLng( m_data.center.lat, m_data.size_x/2, m_data.size_y/2, delta );
+        m_corners.ne = new OpenLayers.LonLat( m_data.center.lon + delta.dLng, m_data.center.lat + delta.dLat );
+        m_corners.sw = new OpenLayers.LonLat( m_data.center.lon - delta.dLng, m_data.center.lat - delta.dLat );
+    }
+    
+    var m_this = this;
+    var m_data = { size_x: NaN, 
+                   size_y: NaN, 
+                   scale: NaN, 
+                   resolution: NaN, 
+                   center: null };
+                   
+    var m_corners = { ne: null, sw: null };
+    
+    var m_bNeedUpdateCorners = true;
+}
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Render Widget ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -474,9 +542,9 @@ RenderWidget = function( sheetController, mapLayoutWidget, logger )
                 return;
             }
             
-            downloadLink.html($('<a></a>').attr({href: 'sheets/'+data.pic_filename}).text('Rendered picture file'))
+            downloadLink.html($('<a></a>').attr({href: 'sheets/'+data.pic_filename, target: '_blank'}).text('Rendered picture file'))
                                .append($('<br/>'))
-                               .append($('<a></a>').attr({href: 'sheets/'+data.map_filename}).text('Rendered map file'));
+                               .append($('<a></a>').attr({href: 'sheets/'+data.map_filename, target: '_blank'}).text('Rendered map file'));
             
             if (data.debug) m_logger.message("Debug from server: <br/><i>" + data.debug.join('<br/>') + '</i>');
         }, error: function(request, textStatus, error){

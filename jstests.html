@@ -38,7 +38,7 @@
             map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
             
             var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
-            var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, mapCenterLonLat, curLogger );
+            var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, mapCenterLonLat, curLogger, new Sheet() );
             
             var moveEventCount = 0;
             
@@ -62,7 +62,7 @@
         
         function testSheetOptionsWidget()
         {
-            var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), new NullLogger() );
+            var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), new NullLogger(), new Sheet() );
             var sx = 100;
             var sy = 200;
             
@@ -84,6 +84,34 @@
             $("#sow_sizex").trigger("change");
             sheetOptions = m_sheetOptionsWidget.getSheetOptions();
             assertNaN( sheetOptions.m_sizeX );
+        }
+        
+        function testSheet()
+        {
+            var m_sheet = new Sheet();
+            assertUndefined(m_sheet.get('aaa'));
+            assertNaN(m_sheet.get('size_x'));
+            assertNaN(m_sheet.get('size_y'));
+            assertNaN(m_sheet.get('scale'));
+            assertNaN(m_sheet.get('resolution'));
+            assertNull(m_sheet.get('center'));
+            assertNull(m_sheet.get('ne'));
+            assertNull(m_sheet.get('sw'));
+            
+            m_sheet.set({size_x: 100, size_y: 200, scale: 500, resolution: 14});
+            m_sheet.set({center: new OpenLayers.LonLat(37.98, 55.78)});
+            
+            assertEquals( m_sheet.get('size_x'), 100 );
+            assertEquals( m_sheet.get('size_y'), 200 );
+            assertEquals( m_sheet.get('scale'),  500 );
+            assertEquals( m_sheet.get('resolution'),  14 );
+            
+            var center = m_sheet.get('center');
+            assertEquals( center.lon,  37.98 );
+            assertEquals( center.lat,  55.78 );
+            
+            assertNotNull(m_sheet.get('ne'));
+            assertNotNull(m_sheet.get('sw'));
         }
         
     </script>

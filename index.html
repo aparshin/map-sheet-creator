@@ -26,7 +26,8 @@
             var gLogger = {};
             var gRender = {};
             
-            var MAP_HOST_NAME = 'http://188.127.225.240';
+            //var MAP_HOST_NAME = 'http://188.127.225.240';
+            var MAP_HOST_NAME = '';
             
             function showAboutPage(event)
             {
@@ -101,6 +102,7 @@
                     
                 gMapLayoutWidget = new MapLayoutWidget( map, serverNamesMap );
                 gSheetController = new SheetController( map, curLogger );
+                
                 //gRender = new LoadRenderWidget( gSheetController, gMapLayoutWidget, curLogger );
                 gRender = new RenderWidget( gSheetController, gMapLayoutWidget, curLogger );
                 
