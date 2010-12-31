@@ -264,7 +264,7 @@ SheetOptions = function()
     this.m_sizeY = NaN; //centimeters
     this.m_scale = NaN; // meters per centimeter
     this.m_resolution = NaN; //map's zoom level (13, 14, etc)
-    this.m_orientation = NaN; // 1 - albom, 2 - portrait
+    this.m_orientation = NaN; // 1 - landscape, 2 - portrait
     
     this.isDataValid = function()
     {
@@ -298,7 +298,7 @@ SheetOptionsWidget = function( container, logger )
     
     var updateSheetOptionsFromWidget = function()
     {
-        m_sheetOptions.m_orientation = $("#sow_albom", m_container).attr("checked") ? 1 : 2;
+        m_sheetOptions.m_orientation = $("#sow_landscape", m_container).attr("checked") ? 1 : 2;
         m_sheetOptions.m_sizeX = parseFloat( $("#sow_sizex", m_container).val() );
         m_sheetOptions.m_sizeY = parseFloat( $("#sow_sizey", m_container).val() );
         m_sheetOptions.m_scale = parseFloat( $("#sow_scale", m_container).val() );
@@ -313,12 +313,12 @@ SheetOptionsWidget = function( container, logger )
     
     var updateSizesFromSizePreset = function(presetName)
     {
-        var isAlbom = $("#sow_albom", m_container).attr("checked");
+        var isLandscape = $("#sow_landscape", m_container).attr("checked");
         var sizex = m_sizePresets[presetName].sizex;
         var sizey = m_sizePresets[presetName].sizey;
         
-        $("#sow_sizex", m_container).val( isAlbom ? sizey : sizex );
-        $("#sow_sizey", m_container).val( isAlbom ? sizex : sizey );
+        $("#sow_sizex", m_container).val( isLandscape ? sizey : sizex );
+        $("#sow_sizey", m_container).val( isLandscape ? sizex : sizey );
     }
     
     //pixelsX - width of sheet (pixels)
@@ -356,7 +356,7 @@ SheetOptionsWidget = function( container, logger )
 
     updateSheetOptionsFromWidget();
 
-    $("#sow_albom, #sow_portr", m_container).bind("change", function()
+    $("#sow_landscape, #sow_portr", m_container).bind("change", function()
     {
         m_logger.message("Orientation change event");
         var sizex = $("#sow_sizex", m_container).val();

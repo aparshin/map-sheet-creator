@@ -74,8 +74,8 @@
             assertEquals( sheetOptions.m_sizeX, sx);
             assertEquals( sheetOptions.m_sizeY, sy);
             
-            $("#sow_albom").attr("checked", "checked");
-            $("#sow_albom").trigger("change");
+            $("#sow_landscape").attr("checked", "checked");
+            $("#sow_landscape").trigger("change");
             sheetOptions = m_sheetOptionsWidget.getSheetOptions();
             assertEquals( sheetOptions.m_sizeX, sy);
             assertEquals( sheetOptions.m_sizeY, sx);
