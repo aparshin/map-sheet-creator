@@ -26,7 +26,6 @@
             var gLogger = {};
             var gRender = {};
             
-            //var MAP_HOST_NAME = 'http://188.127.225.240';
             var MAP_HOST_NAME = '';
             
             function showAboutPage(event)
@@ -95,16 +94,16 @@
                 var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
                 map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
                                 
-                //var curLogger = new DivLogger();
-                var curLogger = new NullLogger();
+                var curLogger = new DivLogger();
+                //var curLogger = new NullLogger();
                 
                 gLogger = curLogger;
                     
                 gMapLayoutWidget = new MapLayoutWidget( map, serverNamesMap );
                 gSheetController = new SheetController( map, curLogger );
                 
-                //gRender = new LoadRenderWidget( gSheetController, gMapLayoutWidget, curLogger );
-                gRender = new RenderWidget( gSheetController, gMapLayoutWidget, curLogger );
+                //gRender = new LoadRenderWidget( gSheetController.getSheet(), gMapLayoutWidget, curLogger );
+                gRender = new RenderWidget( gSheetController.getSheet(), gMapLayoutWidget, curLogger );
                 
                 //layout
                 $("#renderWidget").outerWidth( $("#sheetOptionsWidgetContainer").outerWidth() );

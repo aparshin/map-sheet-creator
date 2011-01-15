@@ -2,20 +2,17 @@
 // TODO: this constant should be synchronized with server. Read it from server?
 var MAX_PIXELS = 12000000;
 
-///////////////////////////////////////////////////////////////////////////////
-/////////////////////////////// Map Manager ///////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-// Helper for work with OpenLayers map.
-//
-// Class adds vector layer to map and draws one rectangle on it. 
-// Rectangle movement callback can be added by user. Rectangle position can 
-// change using class method.
+var INCH2CM = 2.54;
 
-MapManager = function(map, style)
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////CoordinatesConverter ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+// Helper to convert coordinates using OpenLayers.
+
+//map: {OpenLayers.Map}
+CoordinatesConverter = function(map)
 {
-    this.getMap = function() { return m_map; };
-    
-    this.lonlat2Map = function( lonlat )
+    this.lonlat2map = function( lonlat )
     {
        return lonlat.clone().transform( m_lonlatProjection, m_map.getProjectionObject() );
     }
@@ -27,7 +24,7 @@ MapManager = function(map, style)
     
     this.lonlat2pixel = function( lonlat, zoom )
     {
-        var lonlatMapProj = this.lonlat2Map(lonlat);
+        var lonlatMapProj = this.lonlat2map(lonlat);
         var resolution = map.getResolutionForZoom( zoom );
         
         return {
@@ -46,6 +43,25 @@ MapManager = function(map, style)
         return this.map2lonlat( new OpenLayers.LonLat( lon, lat ) );
     }
     
+    var m_map = map;
+    var m_lonlatProjection = new OpenLayers.Projection("EPSG:4326");
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// Map Manager ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+// Helper for work with OpenLayers map.
+//
+// Class adds vector layer to map and draws one rectangle on it. 
+// Rectangle movement callback can be added by user. Rectangle position can 
+// change using class method.
+
+//map {OpenLayers.Map}
+//style - style parameters for {OpenLayers.Feature.Vector} constructor
+MapManager = function(map, style)
+{
+    this.getMap = function() { return m_map; };
+    
     // callback will be called when rectangle is dragged by user
     // callback format: callback(bounds). 
     //      bounds {OpenLayers.Bounds} - new bounds of rectangle in map projection
@@ -56,16 +72,17 @@ MapManager = function(map, style)
     }
     this.getDragCallback = function(){ return this.m_callback; }
     
-    this.addLonlatBounds = function( bounds, style )
+    this.addLonlatBounds = function( bounds )
     {
         if (m_curFeature) m_polygonLayer.removeFeatures([m_curFeature]);
-        m_curFeature = new OpenLayers.Feature.Vector(this.lonlat2Map(bounds).toGeometry(), {}, m_style);
+        m_curFeature = new OpenLayers.Feature.Vector(m_converter.lonlat2map(bounds).toGeometry(), {}, m_style);
         m_polygonLayer.addFeatures([m_curFeature]);
     }
     
     var m_map = map;
     var m_style = style;
     var m_callback = null;
+    var m_converter = new CoordinatesConverter(map);
         
     var m_polygonLayer = new OpenLayers.Layer.Vector("Polygon Layer", {displayInLayerSwitcher: false});
     map.addLayers([m_polygonLayer]);
@@ -74,24 +91,18 @@ MapManager = function(map, style)
     map.addControl( m_dragControl );
     m_dragControl.activate();    
     
-    var m_lonlatProjection = new OpenLayers.Projection("EPSG:4326");
     var m_curFeature = null;
-    
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// MapSheetRectangle ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-// Main purpose of the class is to manage one sheet rectangle size. 
+// Main purpose of the class is to manage position of one sheet rectangle. 
 // Main invariant of the rectangle is phisical size of area in rendered map (meters) 
-// resulting in rectangle size dependance on rectangle position on map 
+// resulting in rectangle size dependence on rectangle position on map 
 // (because of Mercator projection of map)
 //
-// Rectangle can be defined using center coordinates and sizes or using corners' 
-// coordinates. Both variants are used in class, ensuring consistency in 
-// private function updateCornersFromCenter()
-//
-//Trigger events: move(any changes of position or sizes)
+// Rectangle is defined using center coordinates and sizes (meters).
 /**
 * mapManager {MapManager}: helper for rectangle visualization
 * center {OpenLayers.LonLat}
@@ -99,85 +110,37 @@ MapManager = function(map, style)
 * sheet {Sheet}: data object
 */
 MapSheetRectangle = function(mapManager, center, logger, sheet)
-{
-    //Updates coordinates of rectangle corners using center coordinates and size of rectangle (meters)
-    var updateCornersFromCenter = function()
-    {
-        //TODO: OpenLayers.Util.destinationVincenty can be used here
-        var getDeltaLatLng = function(srcLat, distX, distY, outDelta)
-        {
-            var R = 6378137; //earth radius, meters
-            outDelta.dLat = distY/R;
-            
-            var tan2 = Math.tan(distX/R);
-            tan2 *= tan2;
-            var a = tan2/(1+tan2);
-            var cos2 = Math.cos(srcLat/180*Math.PI);
-            cos2 *= cos2;
-            outDelta.dLng = Math.asin(Math.sqrt(a/cos2));
-            
-            outDelta.dLat *= 180/Math.PI;
-            outDelta.dLng *= 180/Math.PI;
-        }
-        
-        var delta = {};
-        getDeltaLatLng( m_center.lat, m_lengthX/2, m_lengthY/2, delta );
-        m_ne = new OpenLayers.LonLat( m_center.lon + delta.dLng, m_center.lat + delta.dLat );
-        m_sw = new OpenLayers.LonLat( m_center.lon - delta.dLng, m_center.lat - delta.dLat );
-    }
-    
+{    
     this.redraw = function()
     {
         var ne = m_sheet.get('ne');
         var sw = m_sheet.get('sw');
         if (!ne || !sw) return;
-        //if (!m_ne || !m_sw) return;
         
-        var lonlatProjection = new OpenLayers.Projection("EPSG:4326");
         var rectangleBounds = new OpenLayers.Bounds();
-        rectangleBounds.extend( m_ne );
-        rectangleBounds.extend( m_sw );
+        rectangleBounds.extend( ne );
+        rectangleBounds.extend( sw );
         m_mapManager.addLonlatBounds(rectangleBounds);
     }
-    
-    //sizeX and sizeY in meters
-    this.setSize = function(sizeX, sizeY)
-    {
-        m_logger.message("Set size: " + sizeX + ", " + sizeY);
-        m_lengthX = sizeX;
-        m_lengthY = sizeY;
-        updateCornersFromCenter();
-        this.redraw();
-        $(m_this).trigger('move');
-    }
-    // Get clone of NE corner
-    this.getNE = function(){ if (m_ne) return m_ne.clone(); else return null; };
-    
-    // Get clone of SW corner
-    this.getSW = function(){ if (m_sw) return m_sw.clone(); else return null; };
-    
+        
     var m_mapManager = mapManager;
-    var m_this = this;
     var m_logger = logger;
-    var m_center = center;
-    var m_lengthX = 0;
-    var m_lengthY = 0;
-    var m_ne = null;
-    var m_sw = null;
     var m_sheet = sheet;
+    var m_converter = new CoordinatesConverter( mapManager.getMap() );
+    
+    m_sheet.set({center: center});
+    
+    $(m_sheet).bind('change', this.redraw);
     
     m_mapManager.setDragCompleteCallback( function(bounds)
     {
         //invariant of rectangle is its center and length (in meters). 
         //So, calculate center and estimate size of rectangle on screen
-        m_center = m_mapManager.map2lonlat(bounds.getCenterLonLat());
-        sheet.set({center: m_center});
-        
-        updateCornersFromCenter();
-        m_this.redraw();
-                
-        $(m_this).trigger('move');
+        var center = m_converter.map2lonlat(bounds.getCenterLonLat());
+        m_sheet.set({center: center});
     });
+    
+    this.redraw();
 }
 
 
@@ -189,97 +152,18 @@ MapSheetRectangle = function(mapManager, center, logger, sheet)
 // logger {ILogger}
 SheetController = function( map, logger )
 {
-    var onUpdateSheetOptions = function()
-    {
-        var sheetOptions = m_sheetOptionsWidget.getSheetOptions();
-        var sizeX = sheetOptions.m_sizeX * sheetOptions.m_scale;
-        var sizeY = sheetOptions.m_sizeY * sheetOptions.m_scale;
-        
-        m_mapSheetRectangle.setSize(sizeX, sizeY);
-    };
-    
-    var onRectangleMove = function()
-    {
-        var ne = m_mapSheetRectangle.getNE();
-        var sw = m_mapSheetRectangle.getSW();
-
-        m_logger.message('Distance Y1: ' + OpenLayers.Util.distVincenty(sw, new OpenLayers.LonLat(sw.lon, ne.lat) ));
-        m_logger.message('Distance Y2: ' + OpenLayers.Util.distVincenty(ne, new OpenLayers.LonLat(ne.lon, sw.lat) ));
-        m_logger.message('Distance X1: ' + OpenLayers.Util.distVincenty(sw, new OpenLayers.LonLat(ne.lon, sw.lat) ));
-        m_logger.message('Distance X2: ' + OpenLayers.Util.distVincenty(ne, new OpenLayers.LonLat(sw.lon, ne.lat) ));
-
-        
-        var sheetData = m_this.getSheetData();
-        var sizeX = sheetData.maxx - sheetData.minx + 1;
-        var sizeY = sheetData.maxy - sheetData.miny + 1;
-        m_sheetOptionsWidget.setMapPixelSizes(sizeX, sizeY);
-    }
-    
-    this.getSheetData = function()
-    {
-        var sheetOptions = m_sheetOptionsWidget.getSheetOptions();
-        
-        var zoom = sheetOptions.m_resolution;
-        var ne = m_mapSheetRectangle.getNE();
-        var sw = m_mapSheetRectangle.getSW();
-        
-        var pne = m_mapManager.lonlat2pixel(ne, zoom);
-        var psw = m_mapManager.lonlat2pixel(sw, zoom);
-        
-        var nw = m_mapManager.pixel2lonlat( {x: psw.x, y:pne.y}, zoom );
-        var se = m_mapManager.pixel2lonlat( {x: pne.x, y:psw.y}, zoom );
-                
-        return {zoom: zoom, minx: psw.x, miny: pne.y, maxx: pne.x, maxy: psw.y, 
-                lenx: sheetOptions.m_sizeX, leny: sheetOptions.m_sizeY, 
-                ne: [ne.lat, ne.lon], 
-                nw: [nw.lat, nw.lon], 
-                se: [se.lat, se.lon], 
-                sw: [sw.lat, sw.lon] };
-    };
-    
-    //TODO: move this function to class Sheet later
-    this.isDataValid = function()
-    {
-        return m_sheetOptionsWidget.getSheetOptions().isDataValid();
-    }
-
     var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
     var m_logger = logger;
     var m_this = this;
-    var m_sheet = new Sheet();
+    var m_converter = new CoordinatesConverter( map );
+    var m_sheet = new Sheet( m_converter );
     
     var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), logger, m_sheet );
-    $(m_sheetOptionsWidget).bind("change", onUpdateSheetOptions);
     
-    var lonlatCenter = m_mapManager.map2lonlat( m_mapManager.getMap().getCenter() );
+    var lonlatCenter = m_converter.map2lonlat( m_mapManager.getMap().getCenter() );
     var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, lonlatCenter, logger, m_sheet );
     
-    $(m_mapSheetRectangle).bind('move', onRectangleMove);
-    
-    onUpdateSheetOptions();
-}
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// SheetOptions ////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-//All sheet options, which user can change except position on map. NaN 
-SheetOptions = function()
-{
-    this.clone = function(){ return $.extend({}, this);};
-    
-    this.m_sizeX = NaN; //centimeters
-    this.m_sizeY = NaN; //centimeters
-    this.m_scale = NaN; // meters per centimeter
-    this.m_resolution = NaN; //map's zoom level (13, 14, etc)
-    this.m_orientation = NaN; // 1 - landscape, 2 - portrait
-    
-    this.isDataValid = function()
-    {
-        return (!isNaN(this.m_sizeX) && this.m_sizeX > 0) && 
-               (!isNaN(this.m_sizeY) && this.m_sizeY > 0) &&
-               (!isNaN(this.m_scale) && this.m_scale > 0) &&
-                !isNaN(this.m_resolution) && !isNaN(this.m_orientation);
-    }
+    this.getSheet = function(){ return m_sheet; };
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -288,7 +172,8 @@ SheetOptions = function()
 //Trigger events: change
 SheetOptionsWidget = function( container, logger, sheet )
 {
-    var updateWidgetFromSheetOptions = function()
+    //makes fields of widget red if corresponding parameters of the sheet are incorrect
+    var updateErrorStates = function()
     {
         var toggleErrorClass = function(cond, elemID)
         {
@@ -298,31 +183,29 @@ SheetOptionsWidget = function( container, logger, sheet )
                 $(elemID, m_container).removeClass("sowErrorValue");
         }
         
-        toggleErrorClass( isNaN(m_sheetOptions.m_sizeX) || m_sheetOptions.m_sizeX <= 0, "#sow_sizex" );
-        toggleErrorClass( isNaN(m_sheetOptions.m_sizeY) || m_sheetOptions.m_sizeY <= 0, "#sow_sizey" );
-        toggleErrorClass( isNaN(m_sheetOptions.m_scale) || m_sheetOptions.m_scale <= 0, "#sow_scale" );
+        var size_x = m_sheet.get('size_x');
+        var size_y = m_sheet.get('size_y');
+        var scale  = m_sheet.get('scale');
+        
+        toggleErrorClass( isNaN(size_x) || size_x <= 0, "#sow_sizex" );
+        toggleErrorClass( isNaN(size_y) || size_y <= 0, "#sow_sizey" );
+        toggleErrorClass( isNaN(scale)  || scale  <= 0, "#sow_scale" );
     }
     
     var updateSheetOptionsFromWidget = function()
     {
-        m_sheetOptions.m_orientation = $("#sow_landscape", m_container).attr("checked") ? 1 : 2;
-        m_sheetOptions.m_sizeX = parseFloat( $("#sow_sizex", m_container).val() );
-        m_sheetOptions.m_sizeY = parseFloat( $("#sow_sizey", m_container).val() );
-        m_sheetOptions.m_scale = parseFloat( $("#sow_scale", m_container).val() );
-        m_sheetOptions.m_resolution = parseFloat( $("select[name=resolution]", m_container).val() );
-        m_logger.message('Updating sheet options: '+ m_sheetOptions.m_orientation + ',' + 
-            m_sheetOptions.m_sizeX + ',' + m_sheetOptions.m_sizeY + ',' + 
-            m_sheetOptions.m_scale + ',' + m_sheetOptions.m_resolution);
+        var orientation = $("#sow_landscape", m_container).attr("checked") ? 1 : 2;
+        var sizeX = parseFloat( $("#sow_sizex", m_container).val() );
+        var sizeY = parseFloat( $("#sow_sizey", m_container).val() );
+        var scale = parseFloat( $("#sow_scale", m_container).val() );
+        var resolution = parseFloat( $("select[name=resolution]", m_container).val() );
+        m_logger.message('Updating sheet options: '+ orientation + ',' + 
+                          sizeX + ',' + sizeY + ',' + 
+                          scale + ',' + resolution);
         
-        m_sheet.set({
-            size_x: m_sheetOptions.m_sizeX,
-            size_y: m_sheetOptions.m_sizeY,
-            scale: m_sheetOptions.m_scale,
-            resolution: m_sheetOptions.m_resolution
-        });
+        m_sheet.set({ size_x: sizeX, size_y: sizeY, scale: scale, resolution: resolution });
         
-        updateWidgetFromSheetOptions();    
-        $(m_this).trigger("change");
+        updateErrorStates();
     }
     
     var updateSizesFromSizePreset = function(presetName)
@@ -335,42 +218,46 @@ SheetOptionsWidget = function( container, logger, sheet )
         $("#sow_sizey", m_container).val( isLandscape ? sizex : sizey );
     }
     
-    //pixelsX - width of sheet (pixels)
-    //pixelsY - height of sheet (pixels)
-    this.setMapPixelSizes = function(pixelsX, pixelsY)
+    //TODO: move to separate class
+    this.setMapPixelSizes = function()
     {
-        //TODO: dpi can be calculated by the Sheet class
-        var dpi = Math.round((pixelsX/m_sheetOptions.m_sizeX + pixelsY/m_sheetOptions.m_sizeY)/2*INCH2CM);
+        //pixelsX - width of sheet (pixels)
+        //pixelsY - height of sheet (pixels)
+        var pixelsX = m_sheet.get('maxx') - m_sheet.get('minx') + 1;
+        var pixelsY = m_sheet.get('maxy') - m_sheet.get('miny') + 1;
+        var dpi = m_sheet.get('dpi');
         $("#sow_final_sheet_options", m_container).text( pixelsX + "x" + pixelsY + " pixels, " + dpi + " dpi" );
         
-        if (pixelsX*pixelsY > MAX_PIXELS)
+        if (m_sheet.get('pixel_count') > MAX_PIXELS)
             $("#sow_final_sheet_options", m_container).addClass("too_big_sheet").append(" (too big)")
         else
             $("#sow_final_sheet_options", m_container).removeClass("too_big_sheet");
-            
     }
     
-    //return clone of current sheet options
-    this.getSheetOptions = function(){ return m_sheetOptions.clone(); };
-
     var DEFAULT_SCALE = 500;
-    var INCH2CM = 2.54;
+    var DEFAULT_PRESET = 'A4';
+    
 
     var m_container = container;
-    var m_sheetOptions = new SheetOptions();
     var m_logger = logger;
     var m_sheet = sheet;
-    var m_this = this;
     
     var m_sizePresets = {};
-    m_sizePresets['A4'] = { sizex: 21.0, sizey: 29.7 };
     m_sizePresets['A3'] = { sizex: 29.7, sizey: 42.0 };
+    m_sizePresets['A4'] = { sizex: 21.0, sizey: 29.7 };
     
-    updateSizesFromSizePreset('A4');
+    for (var p in m_sizePresets)
+        $('#sow_size_preset', m_container).prepend($('<option></options>').attr({value: p}).text(p));
+    
+    $('#sow_size_preset', m_container).val(DEFAULT_PRESET)
+    updateSizesFromSizePreset(DEFAULT_PRESET);
+    
     $("#sow_scale", m_container).val(DEFAULT_SCALE); 
 
     updateSheetOptionsFromWidget();
 
+    $(m_sheet).bind('change', this.setMapPixelSizes);
+    
     $("#sow_landscape, #sow_portr", m_container).bind("change", function()
     {
         m_logger.message("Orientation change event");
@@ -425,12 +312,17 @@ MapLayoutWidget = function( map, namesMap )
 // Trigger event "change"
 //
 // Parameters:
-// - size_x, size_y (get/set)
-// - scale (get/set)
-// - resolution (get/set)
-// - center (get/set)
-// - ne, sw (get)
-Sheet = function()
+// - size_x, size_y (get/set) - centimeters
+// - scale (get/set) - meters in centimeter
+// - resolution (get/set) - tile level (13, 14, etc)
+// - center (get/set) - {OpenLayers.LonLat}
+// - ne, sw, nw, se (get) - {OpenLayers.LonLat}
+// - minx, miny, maxx, maxy (get) - coordinates in raster of corresponding zoom level (pixels)
+// - dpi (get) - double, pixels per inch
+// - pixel_count (get) - number of pixels in rendered sheet
+
+// converter - {CoordinatesConverter}
+Sheet = function( converter )
 {
     this.set = function(properties)
     {
@@ -449,14 +341,39 @@ Sheet = function()
     this.get = function(property)
     {
         if ( typeof(m_data[property]) != 'undefined' ) return m_data[property];
-        if ( property == 'ne' || property == 'sw' )
+        if ( typeof(m_corners[property]) != 'undefined' )
         {
             updateCornersFromCenter();
             return m_corners[property];
         }
+        
+        if ( property == 'dpi' )
+        {
+            updateCornersFromCenter();
+            var pixelsX = m_corners.maxx - m_corners.minx + 1;
+            var pixelsY = m_corners.maxy - m_corners.miny + 1;
+            return Math.round((pixelsX/m_data.size_x + pixelsY/m_data.size_y)/2*INCH2CM);
+        }
+        
+        if ( property == 'pixel_count' )
+        {
+            updateCornersFromCenter();
+            var pixelsX = m_corners.maxx - m_corners.minx + 1;
+            var pixelsY = m_corners.maxy - m_corners.miny + 1;
+            return pixelsX*pixelsY;
+        }
     }
     
-    //Updates coordinates of rectangle corners using center coordinates and size of rectangle (meters)
+    this.isDataValid = function()
+    {
+        return (!isNaN(m_data.size_x) && m_data.size_x > 0) && 
+               (!isNaN(m_data.size_y) && m_data.size_y > 0) &&
+               (!isNaN(m_data.scale)  && m_data.scale > 0 ) &&
+                !isNaN(m_data.resolution) && m_data.center;
+    }
+    
+    //Updates coordinates of rectangle corners using center coordinates and size of rectangle
+    //Following properties are updated: ne, sw, nw, se, minx, miny, maxx, maxy
     var updateCornersFromCenter = function()
     {
         if ( !m_bNeedUpdateCorners || !m_data.center || !m_data.size_x || !m_data.size_y) return;
@@ -479,9 +396,22 @@ Sheet = function()
         }
         
         var delta = {};
-        getDeltaLatLng( m_data.center.lat, m_data.size_x/2, m_data.size_y/2, delta );
+        getDeltaLatLng( m_data.center.lat, m_data.size_x*m_data.scale/2, m_data.size_y*m_data.scale/2, delta );
         m_corners.ne = new OpenLayers.LonLat( m_data.center.lon + delta.dLng, m_data.center.lat + delta.dLat );
         m_corners.sw = new OpenLayers.LonLat( m_data.center.lon - delta.dLng, m_data.center.lat - delta.dLat );
+        
+        var zoom = m_data.resolution;
+        
+        var pne = m_converter.lonlat2pixel(m_corners.ne, zoom);
+        var psw = m_converter.lonlat2pixel(m_corners.sw, zoom);
+        
+        m_corners.nw = m_converter.pixel2lonlat( {x: psw.x, y:pne.y}, zoom );
+        m_corners.se = m_converter.pixel2lonlat( {x: pne.x, y:psw.y}, zoom );
+        
+        m_corners.minx = psw.x;
+        m_corners.miny = pne.y;
+        m_corners.maxx = pne.x;
+        m_corners.maxy = psw.y; 
     }
     
     var m_this = this;
@@ -491,7 +421,12 @@ Sheet = function()
                    resolution: NaN, 
                    center: null };
                    
-    var m_corners = { ne: null, sw: null };
+    var m_corners = { ne: null, sw: null,
+                      nw: null, se: null,
+                      minx: NaN, maxx: NaN, 
+                      miny: NaN, maxy: NaN };
+                      
+    var m_converter = converter;
     
     var m_bNeedUpdateCorners = true;
 }
@@ -499,20 +434,31 @@ Sheet = function()
 ///////////////////////////////// Render Widget ///////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-constructRenderData = function( sheetController, mapLayoutWidget )
+//helper function
+constructRenderData = function( sheet, mapLayoutWidget )
 {
-    if ( !sheetController.isDataValid() )
+    if ( !sheet.isDataValid() )
     {
         alert("Enter correct sheet options!");
         return;
     }
-            
-    var renderData = sheetController.getSheetData();
     
-    //TODO: move check to Sheet class
-    var sizeX = renderData.maxx - renderData.minx + 1;
-    var sizeY = renderData.maxy - renderData.miny + 1;
-    if (sizeX*sizeY > MAX_PIXELS)
+    var zoom = sheet.get('resolution');
+    var ne = sheet.get('ne');
+    var sw = sheet.get('sw');
+    var nw = sheet.get('nw');
+    var se = sheet.get('se');
+    
+    var renderData = {zoom: zoom, 
+            minx: sheet.get('minx'),   miny: sheet.get('miny'), 
+            maxx: sheet.get('maxx'),   maxy: sheet.get('maxy'), 
+            lenx: sheet.get('size_x'), leny: sheet.get('size_y'), 
+            ne: [ne.lat, ne.lon], 
+            nw: [nw.lat, nw.lon], 
+            se: [se.lat, se.lon], 
+            sw: [sw.lat, sw.lon] };
+            
+    if (sheet.get('pixel_count') > MAX_PIXELS)
     {
         alert('Too big sheet! Limit is ' + MAX_PIXELS + ' pixels');
         return;
@@ -523,11 +469,13 @@ constructRenderData = function( sheetController, mapLayoutWidget )
     return renderData;
 }
 
-RenderWidget = function( sheetController, mapLayoutWidget, logger )
+//Simple render. Creates button "Render". When it is pressed, 
+//send request to server and creates links to image and map files, when rendering is finished
+RenderWidget = function( sheet, mapLayoutWidget, logger )
 {    
     var renderSheet = function()
     {
-        var renderData = constructRenderData( m_sheetController, m_mapLayoutWidget );
+        var renderData = constructRenderData( sheet, m_mapLayoutWidget );
         if (!renderData) return;
         
         var downloadLink = $('#download_link', m_renderDiv);
@@ -553,7 +501,6 @@ RenderWidget = function( sheetController, mapLayoutWidget, logger )
         }});
     }
     
-    var m_sheetController = sheetController;
     var m_mapLayoutWidget = mapLayoutWidget;
     var m_renderDiv = $("#renderWidget");
     var m_logger = logger;
@@ -562,13 +509,13 @@ RenderWidget = function( sheetController, mapLayoutWidget, logger )
     $("#renderButton", m_renderDiv).bind('click', renderSheet);
 }
 
-LoadRenderWidget = function( sheetController, mapLayoutWidget, logger )
+//Render for internal load testing. When button "Render" is pressed, 
+//sends to server simultaneously several requests to render sheets and all links of rendered images
+LoadRenderWidget = function( sheet, mapLayoutWidget, logger )
 {
-    //var m_renderWidget = new RenderWidget( sheetController, mapLayoutWidget, logger );
-    
     var m_renderDiv = $("#renderWidget");
     m_renderDiv.height(600);
-    var RENDER_COUNT = 20;
+    var RENDER_REQUEST_COUNT = 20;
     // var m_currentlyRendered = 0;
     var downloadLink = $('#download_link', m_renderDiv);
     
@@ -580,12 +527,12 @@ LoadRenderWidget = function( sheetController, mapLayoutWidget, logger )
     
     var renderSheet = function()
     {
-        var renderData = constructRenderData( sheetController, mapLayoutWidget );
+        var renderData = constructRenderData( sheet, mapLayoutWidget );
         if (!renderData) return;
         
         downloadLink.empty();
         
-        for (var sh = 0; sh < RENDER_COUNT; sh++)
+        for (var sh = 0; sh < RENDER_REQUEST_COUNT; sh++)
             $.ajax({type:"get", url: "cgi-bin/render.cgi", data: renderData, dataType: "json", 
                     success: successedRender});
         
@@ -594,12 +541,12 @@ LoadRenderWidget = function( sheetController, mapLayoutWidget, logger )
     $("#renderButton", m_renderDiv).bind('click', renderSheet);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// Loggers /////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 //Interface ILogger: message(message). "message" is any string. Return none.
 
+//Creates div for messages and writes messages to it is simple text
 DivLogger = function()
 {
     this.message = function( message )
@@ -612,4 +559,5 @@ DivLogger = function()
     
 };
 
+//Do nothing with messages
 NullLogger = function(){ this.message = function(){}; };

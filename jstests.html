@@ -14,7 +14,7 @@
 
     <script type="text/javascript">
     
-        function testMapRectangle() {
+        /*function testMapRectangle() {
             var map = new OpenLayers.Map("map_canvas", {
                     maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
                     numZoomLevels:18,
@@ -58,11 +58,12 @@
             m_mapManager.getDragCallback()( new OpenLayers.Bounds(10, 20, 10, 20) );
             
             assertEquals( moveEventCount, 2 ); 
-        }
+        }*/
         
         function testSheetOptionsWidget()
         {
-            var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), new NullLogger(), new Sheet() );
+            var sheet = new Sheet();
+            var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), new NullLogger(), sheet );
             var sx = 100;
             var sy = 200;
             
@@ -70,25 +71,41 @@
             $("#sow_sizey").val(sy);
             $("#sow_sizex").trigger("change");
             $("#sow_sizey").trigger("change");
-            var sheetOptions = m_sheetOptionsWidget.getSheetOptions();
-            assertEquals( sheetOptions.m_sizeX, sx);
-            assertEquals( sheetOptions.m_sizeY, sy);
+            //var sheetOptions = m_sheetOptionsWidget.getSheetOptions();
+            assertEquals( sheet.get('size_x'), sx);
+            assertEquals( sheet.get('size_y'), sy);
             
             $("#sow_landscape").attr("checked", "checked");
             $("#sow_landscape").trigger("change");
-            sheetOptions = m_sheetOptionsWidget.getSheetOptions();
-            assertEquals( sheetOptions.m_sizeX, sy);
-            assertEquals( sheetOptions.m_sizeY, sx);
+            //sheetOptions = m_sheetOptionsWidget.getSheetOptions();
+            assertEquals( sheet.get('size_x'), sy);
+            assertEquals( sheet.get('size_y'), sx);
             
             $("#sow_sizex").val("aaaaaaaaaaaaaaaaaaaaaaa");
             $("#sow_sizex").trigger("change");
-            sheetOptions = m_sheetOptionsWidget.getSheetOptions();
-            assertNaN( sheetOptions.m_sizeX );
+            //sheetOptions = m_sheetOptionsWidget.getSheetOptions();
+            assertNaN( sheet.get('size_x') );
         }
         
         function testSheet()
         {
-            var m_sheet = new Sheet();
+            //used for transformations
+            var map = new OpenLayers.Map("map_canvas", {
+                    maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
+                    numZoomLevels:18,
+                    maxResolution:156543.0339,
+                    units:'m',
+                    projection: "EPSG:900913",
+                    displayProjection: new OpenLayers.Projection("EPSG:4326"),
+                    allOverlays: true
+            });
+            
+            var dumpLayer = new OpenLayers.Layer.Vector("Dump Layer");
+            map.addLayers([dumpLayer]);
+            
+            var converter = new CoordinatesConverter( map )
+            
+            var m_sheet = new Sheet( converter );
             assertUndefined(m_sheet.get('aaa'));
             assertNaN(m_sheet.get('size_x'));
             assertNaN(m_sheet.get('size_y'));
@@ -97,6 +114,11 @@
             assertNull(m_sheet.get('center'));
             assertNull(m_sheet.get('ne'));
             assertNull(m_sheet.get('sw'));
+            assertNull(m_sheet.get('nw'));
+            assertNull(m_sheet.get('se'));
+            
+            assertNaN(m_sheet.get('dpi'));
+            assertNaN(m_sheet.get('pixel_count'));
             
             m_sheet.set({size_x: 100, size_y: 200, scale: 500, resolution: 14});
             m_sheet.set({center: new OpenLayers.LonLat(37.98, 55.78)});
@@ -112,6 +134,16 @@
             
             assertNotNull(m_sheet.get('ne'));
             assertNotNull(m_sheet.get('sw'));
+            assertNotNull(m_sheet.get('se'));
+            assertNotNull(m_sheet.get('nw'));
+            
+            assertNotNaN(m_sheet.get('minx'));
+            assertNotNaN(m_sheet.get('miny'));
+            assertNotNaN(m_sheet.get('maxx'));
+            assertNotNaN(m_sheet.get('maxy'));
+            
+            assertNotNaN(m_sheet.get('dpi'));
+            assertNotNaN(m_sheet.get('pixel_count'));
         }
         
     </script>
