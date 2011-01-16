@@ -555,7 +555,7 @@ DivLogger = function()
     }
     
     var m_logDiv = $('<div></div>').addClass('ui-widget-content divLoggerDiv');
-    $("body").append(m_logDiv.get(0));
+    $("body").append(m_logDiv);
     
 };
 

@@ -1,0 +1,18 @@
+<div id = "divTrackWidget" class="ui-widget-content divTrackWidget">
+    <form action="cgi-bin/tracks.cgi" target="tw_frame">
+        <table width="100%">
+        <tr>
+            <td>From&nbsp;Web:</td>
+            <td><input id="tw_web" width="100%" type="text" name="web_track"></td>
+            <td rowspan = 2><input id="tw_add" type="submit" name="add_track" value="Add track"></td>
+        </tr>
+        <tr>
+            <td>Upload:</td>
+            <td><input id="tw_upload" type="file" name="upload_track"></td>
+        </tr>
+        </table>
+    </form>
+    <div style="display:none">
+        <iframe id="tw_frame" name="tw_frame"></iframe>
+    </div>
+</div>

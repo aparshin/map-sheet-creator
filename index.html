@@ -10,7 +10,8 @@
 		<script type="text/javascript" src="js/LayerSwitcherWithOrder.js "   ></script>
         
         <link type="text/css" href="css/sheetcomposer.css"                   rel="stylesheet" />
-        <script type="text/javascript" src="js/main.js" ></script>
+        <script type="text/javascript" src="js/main.js"   ></script>
+        <script type="text/javascript" src="js/tracks.js" ></script>
         
         <script type="text/javascript">
             $(function() {
@@ -25,6 +26,7 @@
             var gMapLayoutWidget = {};
             var gLogger = {};
             var gRender = {};
+            var gTrackWidget = {};
             
             var MAP_HOST_NAME = '';
             
@@ -101,6 +103,7 @@
                     
                 gMapLayoutWidget = new MapLayoutWidget( map, serverNamesMap );
                 gSheetController = new SheetController( map, curLogger );
+                gTrackWidget = new TrackWidget( map );
                 
                 //gRender = new LoadRenderWidget( gSheetController.getSheet(), gMapLayoutWidget, curLogger );
                 gRender = new RenderWidget( gSheetController.getSheet(), gMapLayoutWidget, curLogger );
@@ -116,7 +119,6 @@
         <div id="map_canvas" style="width: 100%; height: 100%; margin:0; padding:0; overflow:hidden;"></div>
         
         <div id="renderWidget" class="ui-widget-content">
-                <!-- <form><input id= "renderButton", type="button" value="Render Sheet" onclick="renderSheet();" style="width:100%" ></form> -->
                 <form><input id= "renderButton", type="button" value="Render Sheet" style="width:100%" ></form>
                 <p id="download_link"></p>
         </div>
@@ -129,6 +131,7 @@
         <!--#include virtual="sheet_options_widget.html" -->
         <!--#include virtual="about.html" -->
         <!--#include virtual="help.html" -->
+        <!--#include virtual="track_widget.html" -->
        
     </body>
 </html>
