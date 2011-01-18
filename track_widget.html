@@ -1,5 +1,5 @@
 <div id = "divTrackWidget" class="ui-widget-content divTrackWidget">
-    <form action="cgi-bin/tracks.cgi" target="tw_frame">
+    <form action="cgi-bin/tracks.cgi" target="tw_frame" method="post"  enctype="multipart/form-data">
         <table width="100%">
         <tr>
             <td>From&nbsp;Web:</td>
@@ -11,6 +11,9 @@
             <td><input id="tw_upload" type="file" name="upload_track"></td>
         </tr>
         </table>
+        <div style="display:none">
+            <input id = "tw_reset" type="reset">
+        </div>
     </form>
     <div style="display:none">
         <iframe id="tw_frame" name="tw_frame"></iframe>
