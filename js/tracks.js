@@ -22,13 +22,12 @@ TrackWidget = function(m_map, m_container)
     }
     
     $("#tw_frame", m_container).bind('load', function(){
-        var trackURL = $("#tw_frame", m_container).contents().find('body').text();
-        addTrack(trackURL);
+        var trackURLs = $("#tw_frame", m_container).contents().find('body').text();
+        // alert(trackURLs);
+        trackURLs = eval(trackURLs);
+        for ( var k = 0; k < trackURLs.length; k++ )
+            addTrack(trackURLs[k]);
+            
         $("#tw_reset", m_container).trigger('click');
     })
-    
-    // $("#tw_add", m_container).bind('click', function()
-    // {
-            
-    // });
 }
