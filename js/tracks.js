@@ -2,10 +2,7 @@ TrackWidget = function(m_map, m_container)
 {
     var m_trackLayers = [];
     var addTrack = function( trackURL )
-    {
-        // alert( $("#tw_upload", m_container).val() );
-        // var trackLocation = $("#tw_web", m_container).val();
-        
+    {        
         if ( !trackURL )
         {
             alert('Enter track location!');
