@@ -9,7 +9,7 @@ use JSON;
 use Encode;
 use IO::Uncompress::Unzip;
 
-use Geo::GPX;
+use Geo::Gpx;
 use LWP::Simple qw(!head);
 # use constant TRACK_EXTENSIONS => {plt => 'ozi', gpx => 'gpx'}; # extension => type in gpsbabel
 
