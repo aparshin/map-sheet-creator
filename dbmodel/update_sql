@@ -1,0 +1,4 @@
+[[1]]
+ALTER TABLE request ADD COLUMN received_time DATETIME NULL;
+ALTER TABLE request ADD COLUMN done_time DATETIME NULL;
+UPDATE metadata SET version = 2;

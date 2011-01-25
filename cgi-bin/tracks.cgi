@@ -1,5 +1,13 @@
 #!/usr/bin/perl -wT
 
+# Upload tracks to server and converts them (if nessesary) to GPX format. Returns filenames of uploaded tracks.
+
+# Parameters:
+#   - upload_track. Uploaded file with track to view
+#   - web_track. Link to track file
+#
+# Returns JSON vector of GPX filenames on server.
+
 use strict;
 use CGI ':standard';
 use CGI::Carp qw ( fatalsToBrowser );
@@ -11,9 +19,6 @@ use IO::Uncompress::Unzip;
 
 use Geo::Gpx;
 use LWP::Simple qw(!head);
-# use constant TRACK_EXTENSIONS => {plt => 'ozi', gpx => 'gpx'}; # extension => type in gpsbabel
-
-
  
 $CGI::POST_MAX = 1024*1024*5;
 

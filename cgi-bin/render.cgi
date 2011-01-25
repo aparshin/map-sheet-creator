@@ -189,11 +189,15 @@ printMapFile(\@nwPoint, \@nePoint, \@sePoint, \@swPoint, $filename, $w, $h, int(
     or $logger->error('Error saving map file');
 close $MAPFILE;
 
+eval { DBManager::setRequestDone($requestID) };
+$logger->error("Can't write request status: ".$@) if $@;
+
 my $outResult;
 $outResult->{map_filename} = "sheet_${prefix}.map";
 $outResult->{pic_filename} = "sheet_${prefix}.png";
 $outResult->{debug} = $logger->getLogs;
 print to_json( $outResult );
+
 
 # Syntax: isValidLatLon(\@latlon) -> bool
 # latlon is 2-elements array (lat, lon)

@@ -75,8 +75,11 @@ MapManager = function(map, style)
     this.addLonlatBounds = function( bounds )
     {
         if (m_curFeature) m_polygonLayer.removeFeatures([m_curFeature]);
-        m_curFeature = new OpenLayers.Feature.Vector(m_converter.lonlat2map(bounds).toGeometry(), {}, m_style);
-        m_polygonLayer.addFeatures([m_curFeature]);
+        if ( bounds )
+        {
+            m_curFeature = new OpenLayers.Feature.Vector(m_converter.lonlat2map(bounds).toGeometry(), {}, m_style);
+            m_polygonLayer.addFeatures([m_curFeature]);
+        }
     }
     
     var m_map = map;
@@ -113,6 +116,11 @@ MapSheetRectangle = function(mapManager, center, logger, sheet)
 {    
     this.redraw = function()
     {
+        if (!m_sheet.isDataValid())
+        {
+            m_mapManager.addLonlatBounds(null);
+            return;
+        }
         var ne = m_sheet.get('ne');
         var sw = m_sheet.get('sw');
         if (!ne || !sw) return;
