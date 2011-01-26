@@ -1,3 +1,8 @@
+// Draws track widget and manages track loading to server and visualization on client
+// Separate layer will be created for each track.
+
+// m_map {OpenLayers.Map} - map, where tracks should be rendered
+// m_container {DOMElement, jQuery element} - container for widget
 TrackWidget = function(m_map, m_container)
 {
     var m_trackLayers = [];

@@ -2,7 +2,7 @@
 // TODO: this constant should be synchronized with server. Read it from server?
 var MAX_PIXELS = 12000000;
 
-var INCH2CM = 2.54;
+var INCH2CM = 2.54; //Constant to covert inches to centimeters.
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////CoordinatesConverter ///////////////////////////////
@@ -72,6 +72,7 @@ MapManager = function(map, style)
     }
     this.getDragCallback = function(){ return this.m_callback; }
     
+    //bounds: {OpenLayers.Bounds} - rectangle bounds. If bounds==null, no rectangle will be rendered
     this.addLonlatBounds = function( bounds )
     {
         if (m_curFeature) m_polygonLayer.removeFeatures([m_curFeature]);
@@ -107,13 +108,13 @@ MapManager = function(map, style)
 //
 // Rectangle is defined using center coordinates and sizes (meters).
 /**
-* mapManager {MapManager}: helper for rectangle visualization
+* mapManager {OpenLayers.Map}: map to draw rectangle to
 * center {OpenLayers.LonLat}
 * logger {ILogger}: object for log writing
 * sheet {Sheet}: data object
 */
-MapSheetRectangle = function(mapManager, center, logger, sheet)
-{    
+MapSheetRectangle = function(map, center, logger, sheet)
+{
     this.redraw = function()
     {
         if (!m_sheet.isDataValid())
@@ -131,10 +132,11 @@ MapSheetRectangle = function(mapManager, center, logger, sheet)
         m_mapManager.addLonlatBounds(rectangleBounds);
     }
         
-    var m_mapManager = mapManager;
+    // var m_mapManager = mapManager;
+    var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
     var m_logger = logger;
     var m_sheet = sheet;
-    var m_converter = new CoordinatesConverter( mapManager.getMap() );
+    var m_converter = new CoordinatesConverter( map );
     
     m_sheet.set({center: center});
     
@@ -149,29 +151,6 @@ MapSheetRectangle = function(mapManager, center, logger, sheet)
     });
     
     this.redraw();
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////// SheetController /////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////
-// Synchronization between sheet rectangle and sheet options widget.
-// map {OpenLayers.Map}
-// logger {ILogger}
-SheetController = function( map, logger )
-{
-    var m_mapManager = new MapManager(map, {fillColor: "#ff0000", fillOpacity: 0.5});
-    var m_logger = logger;
-    var m_this = this;
-    var m_converter = new CoordinatesConverter( map );
-    var m_sheet = new Sheet( m_converter );
-    
-    var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), logger, m_sheet );
-    
-    var lonlatCenter = m_converter.map2lonlat( m_mapManager.getMap().getCenter() );
-    var m_mapSheetRectangle = new MapSheetRectangle( m_mapManager, lonlatCenter, logger, m_sheet );
-    
-    this.getSheet = function(){ return m_sheet; };
 }
 
 ///////////////////////////////////////////////////////////////////////////////

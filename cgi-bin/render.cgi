@@ -34,6 +34,7 @@ use MapManager;
 use constant TILE_SIZE     => 256;         # Size of one tile (pixels)
 use constant TARGET_FOLDER => '../sheets'; # Folder, where rendered sheets and map files will be rendered.
 use constant MAX_PIXELS => 12000000;       # Maximum number of pixels in the rendered picture.
+
 my $res;
 
 my $logger = new Logger();
@@ -115,11 +116,6 @@ $logger->log("Request ID: $requestID");
 
 eval { DBManager::addRequestLayers( $requestID, \@maps ); };
 $logger->error('Error during adding request layers in DB: '.$@) if $@; 
-# my $miny = 324*256+210;
-# my $maxy = 325*256+130;
-# my $minx = 618*256+107;
-# my $maxx = 621*256+150;
-# my $zoom = 10;
 
 my $tileminx = int($minx/TILE_SIZE);
 my $tilemaxx = int(($maxx+1)/TILE_SIZE);
@@ -198,6 +194,7 @@ $outResult->{pic_filename} = "sheet_${prefix}.png";
 $outResult->{debug} = $logger->getLogs;
 print to_json( $outResult );
 
+###############################################################################
 
 # Syntax: isValidLatLon(\@latlon) -> bool
 # latlon is 2-elements array (lat, lon)
@@ -209,15 +206,14 @@ sub isValidLatLon
            $$latlon[1] >= -180 and $$latlon[1] <= 180;
 }
 
-sub printCalibrationPointToMapfile
-{
-    my ($pointPostfix, $x, $y, $lat, $lng) = @_;
-    my $degMinutes = sub{ return sprintf("%.6f", ($_[0] - int($_[0]))*60); };
-    
-    return "Point${pointPostfix},xy, $x, $y,in, deg, " . 
-            int($lat) . ", " . &$degMinutes($lat) . ",N, " . int($lng) . ", " . &$degMinutes($lng) . ",E, grid, , , ,S";
-}
-
+# Prints to given filehandler OziExplorer MAP file
+# Usage:
+#   printMapFile($nw, $ne, $se, $sw, $filename, $w, $h, $scale, $hbuffer)
+# Where
+#   first 4 parameters are references to 2-elem array [lat, lon]
+#   filename - name of file with picture;
+#   w, h - size of picture in pixels
+#   scale - meters in pixel
 sub printMapFile
 {
     my ($nw, $ne, $se, $sw, $filename, $w, $h, $scale, $hbuffer) = @_;
@@ -252,4 +248,14 @@ sub printMapFile
     print $hbuffer "MM1B,$scale";
     
     return 1;
+}
+
+# helter function to create OziExplorer MAP file
+sub printCalibrationPointToMapfile
+{
+    my ($pointPostfix, $x, $y, $lat, $lng) = @_;
+    my $degMinutes = sub{ return sprintf("%.6f", ($_[0] - int($_[0]))*60); };
+    
+    return "Point${pointPostfix},xy, $x, $y,in, deg, " . 
+            int($lat) . ", " . &$degMinutes($lat) . ",N, " . int($lng) . ", " . &$degMinutes($lng) . ",E, grid, , , ,S";
 }

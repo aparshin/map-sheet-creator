@@ -24,7 +24,7 @@
             var gTestPolyline = {};
             var gSheetController = {};
             var gMapLayoutWidget = {};
-            var gLogger = {};
+            // var gLogger = {};
             var gRender = {};
             var gTrackWidget = {};
             
@@ -99,14 +99,21 @@
                 var curLogger = new DivLogger();
                 //var curLogger = new NullLogger();
                 
-                gLogger = curLogger;
+                //gLogger = curLogger;
+                
+                var m_converter = new CoordinatesConverter( map );
+                var m_sheet = new Sheet( m_converter );
+                
+                var m_sheetOptionsWidget = new SheetOptionsWidget( $("#sheetOptionsWidgetContainer"), curLogger, m_sheet );
+    
+                var lonlatCenter = m_converter.map2lonlat( map.getCenter() );
+                var m_mapSheetRectangle = new MapSheetRectangle( map, lonlatCenter, curLogger, m_sheet );
                     
                 gMapLayoutWidget = new MapLayoutWidget( map, serverNamesMap );
-                gSheetController = new SheetController( map, curLogger );
                 gTrackWidget = new TrackWidget( map );
                 
                 //gRender = new LoadRenderWidget( gSheetController.getSheet(), gMapLayoutWidget, curLogger );
-                gRender = new RenderWidget( gSheetController.getSheet(), gMapLayoutWidget, curLogger );
+                gRender = new RenderWidget( m_sheet, gMapLayoutWidget, curLogger );
                 
                 //layout
                 $("#renderWidget").outerWidth( $("#sheetOptionsWidgetContainer").outerWidth() );
