@@ -373,7 +373,9 @@ RenderWidget = function( sheet, mapLayoutWidget, logger )
             
             downloadLink.html($('<a></a>').attr({href: 'sheets/'+data.pic_filename, target: '_blank'}).text('Rendered picture file'))
                                .append($('<br/>'))
-                               .append($('<a></a>').attr({href: 'sheets/'+data.map_filename, target: '_blank'}).text('Rendered map file'));
+                               .append($('<a></a>').attr({href: 'sheets/'+data.map_filename, target: '_blank'}).text('Rendered map file'))
+                               .append($('<br/>'))
+                               .append($('<a></a>').attr({href: 'sheets/'+data.kmz_filename, target: '_blank'}).text('Rendered kmz file'));
             
             if (data.debug) m_logger.message("Debug from server: <br/><i>" + data.debug.join('<br/>') + '</i>');
         }, error: function(request, textStatus, error){

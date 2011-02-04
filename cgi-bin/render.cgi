@@ -11,6 +11,7 @@
 # JSON with following fields:
 #  * pic_filename - local name of generated picture (no folder or hostname, for example: sheet_0.png)
 #  * map_filename - local name of generated map file
+#  * map_filename - local name of generated kmz file
 #  *[optional] debug - Any debug information
 #
 # In case of any errors, the only field 'error' with error description will be passed using JSON.
@@ -26,6 +27,8 @@ use CGI::Carp qw ( fatalsToBrowser );
 use Image::Magick;
 use JSON;
 use POSIX;
+
+use Geo::KML;
 
 use DBManager;
 use Logger;
@@ -178,19 +181,29 @@ $res = $image->Write("png8:".TARGET_FOLDER."/$filename");
 # Looks like some of them are bugs in IM: http://www.wizards-toolkit.org/discourse-server/viewtopic.php?f=3&t=16490
 die "$res" if "$res" =~ /error/;
 
+#create MAP file
 (my $mapFilename = $filename) =~ s/\.png$/.map/;
 my $MAPFILE;
-open $MAPFILE, ">:crlf", TARGET_FOLDER."/$mapFilename" or $logger->error('Error opening file to save rendered sheet');
+open $MAPFILE, ">:crlf", TARGET_FOLDER."/$mapFilename" or $logger->error('Error opening file to save MAP file');
 printMapFile(\@nwPoint, \@nePoint, \@sePoint, \@swPoint, $filename, $w, $h, int($w/$lenx), $MAPFILE) 
     or $logger->error('Error saving map file');
 close $MAPFILE;
+
+#create KML file
+(my $kmzFilename = $filename) =~ s/\.png$/.kmz/;
+my $KMZFILE;
+open $KMZFILE, ">:crlf", TARGET_FOLDER."/$kmzFilename" or $logger->error('Error opening file to save KMZ file');
+printKMZFile($nwPoint[0], $swPoint[0], $nePoint[1], $nwPoint[1], $filename, $KMZFILE)
+    or $logger->error('Error saving KMZ file');
+close $KMZFILE;
 
 eval { DBManager::setRequestDone($requestID) };
 $logger->error("Can't write request status: ".$@) if $@;
 
 my $outResult;
-$outResult->{map_filename} = "sheet_${prefix}.map";
-$outResult->{pic_filename} = "sheet_${prefix}.png";
+$outResult->{pic_filename} = $filename;
+$outResult->{kmz_filename} = $kmzFilename;
+$outResult->{map_filename} = $mapFilename;
 $outResult->{debug} = $logger->getLogs;
 print to_json( $outResult );
 
@@ -250,7 +263,7 @@ sub printMapFile
     return 1;
 }
 
-# helter function to create OziExplorer MAP file
+# helper function to create OziExplorer MAP file
 sub printCalibrationPointToMapfile
 {
     my ($pointPostfix, $x, $y, $lat, $lng) = @_;
@@ -258,4 +271,21 @@ sub printCalibrationPointToMapfile
     
     return "Point${pointPostfix},xy, $x, $y,in, deg, " . 
             int($lat) . ", " . &$degMinutes($lat) . ",N, " . int($lng) . ", " . &$degMinutes($lng) . ",E, grid, , , ,S";
+}
+
+sub printKMZFile
+{
+    my ($north, $south, $east, $west, $picName, $outFilehandler) = @_;
+    my $latlonBox = { rotation => 0.0, 
+                      north => $north,
+                      south => $south,
+                      east => $east,
+                      west => $west };
+                      
+    my $groundOverlay = {Icon => {href => $picName}, LatLonBox => $latlonBox};
+    my $kmlData = {Folder => { AbstractFeatureGroup => [{GroundOverlay=>$groundOverlay}], name => 'Map sheet'}};
+    my $kml = Geo::KML->new(version => '2.2.0');
+    $kml->writeKML($kmlData, $outFilehandler, 1);
+    
+    return 1;
 }
