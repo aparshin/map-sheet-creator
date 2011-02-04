@@ -4,8 +4,6 @@ package DBManager;
 
 # DB version: 2
 
-use DBParams;
-
 use DBI;
 use DBParams;
 
