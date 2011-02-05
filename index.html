@@ -44,7 +44,7 @@
             {
                 $('#helpWindow').dialog({width:700, 
                                     modal: true, 
-                                    title: 'Some instructions',
+                                    title: 'Some Instructions',
                                     zindex: 30000});
             }
                         
@@ -66,7 +66,7 @@
             }
             
             function initialize()
-            {                
+            {
                 var slazavLayer = new OpenLayers.Layer.TMS("Slazav",
                            MAP_HOST_NAME + "/maps/slazav/",
                            { 'type':'png', 'getURL':get_my_url, transparent: 'true' });
@@ -98,8 +98,9 @@
                 var mapCenterLonLat = new OpenLayers.LonLat(37.98, 55.78)
                 map.setCenter(mapCenterLonLat.transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject()), 8);
                                 
-                var curLogger = new DivLogger();
-                //var curLogger = new NullLogger();
+                //var curLogger = new DivLogger();
+                var curLogger = new NullLogger();
+                $("#divTrackWidget").css( { left: 50} );
                 
                 //gLogger = curLogger;
                 
