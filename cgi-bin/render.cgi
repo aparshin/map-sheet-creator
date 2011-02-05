@@ -33,10 +33,20 @@ use Geo::KML;
 use DBManager;
 use Logger;
 use MapManager;
+use TimeManager;
 
 use constant TILE_SIZE     => 256;         # Size of one tile (pixels)
 use constant TARGET_FOLDER => '../sheets'; # Folder, where rendered sheets and map files will be rendered.
 use constant MAX_PIXELS => 12000000;       # Maximum number of pixels in the rendered picture.
+
+TimeManager::resetTimer('total');
+TimeManager::resetTimer('readTiles');
+TimeManager::resetTimer('compose');
+TimeManager::resetTimer('allCompose');
+TimeManager::resetTimer('write');
+TimeManager::resetTimer('db');
+
+TimeManager::startTimer('total');
 
 my $res;
 
@@ -101,6 +111,7 @@ $logger->error("Incorrec parameter 'se'") unless isValidLatLon(\@sePoint);
 $logger->error("Incorrec parameter 'sw'") unless isValidLatLon(\@swPoint);
 
 my $requestID;
+TimeManager::startTimer('db');
 eval {
     $requestID = DBManager::registerRequest({
                                      minx => $minx, maxx=> $maxx, 
@@ -119,6 +130,7 @@ $logger->log("Request ID: $requestID");
 
 eval { DBManager::addRequestLayers( $requestID, \@maps ); };
 $logger->error('Error during adding request layers in DB: '.$@) if $@; 
+TimeManager::stopTimer('db');
 
 my $tileminx = int($minx/TILE_SIZE);
 my $tilemaxx = int(($maxx+1)/TILE_SIZE);
@@ -131,6 +143,7 @@ my $globalShiftY = $miny % TILE_SIZE;
 my $size = "${w}x${h}";
 my $density =  ceil($w/$lenx) . "x" . ceil($h/$leny);
 
+TimeManager::startTimer('allCompose');
 my $image = new Image::Magick(size => $size, type => 'PaletteMatte', units => 'PixelsPerCentimeter', transparent => 'transparent', density => $density, colors => 255);
 $res = $image->ReadImage('xc:transparent');
 $logger->error($res) if $res;
@@ -144,8 +157,10 @@ for my $x ($tileminx..$tilemaxx)
             my $tileFilename = MapManager::getTileFilename( $curMapname, $x, $y, $zoom ) or $logger->error('Error constructing filename');
             next unless -e $tileFilename;
             
-            my $curImage = new Image::Magick; 
+            my $curImage = new Image::Magick;
+            TimeManager::startTimer('readTiles');
             $res = $curImage->Read($tileFilename);
+            TimeManager::stopTimer('readTiles');
             die "$res" if "$res";
 
             my $xstart = $minx - $x*TILE_SIZE;
@@ -164,18 +179,24 @@ for my $x ($tileminx..$tilemaxx)
                 die "$res" if "$res";
             }
             
+            TimeManager::startTimer('compose');
             $res = $image->Composite( image => $curImage, 
                                       x => ($x-$tileminx)*TILE_SIZE + $xstart - $globalShiftX, 
                                       y => ($y-$tileminy)*TILE_SIZE + $ystart - $globalShiftY );
+            TimeManager::stopTimer('compose');
             die "$res" if "$res";
             # TODO: optimize composing, check number of transparent pixels!
         }
     }
 }
+TimeManager::stopTimer('allCompose');
 
 my $prefix = $requestID;
 my $filename = "sheet_${prefix}.png";
+
+TimeManager::startTimer('write');
 $res = $image->Write("png8:".TARGET_FOLDER."/$filename");
+TimeManager::stopTimer('write');
 
 # We skip any warnings here. When working under WinXP, there are many warnings with PNG8 format.
 # Looks like some of them are bugs in IM: http://www.wizards-toolkit.org/discourse-server/viewtopic.php?f=3&t=16490
@@ -197,14 +218,29 @@ printKMZFile($nwPoint[0], $swPoint[0], $nePoint[1], $nwPoint[1], $filename, $KMZ
     or $logger->error('Error saving KMZ file');
 close $KMZFILE;
 
+TimeManager::startTimer('db');
 eval { DBManager::setRequestDone($requestID) };
 $logger->error("Can't write request status: ".$@) if $@;
+TimeManager::stopTimer('db');
+
+TimeManager::stopTimer('total');
+
+my $totalTime      = TimeManager::getTimeMeasure('total');
+my $readTimesTime  = TimeManager::getTimeMeasure('readTiles');
+my $composeTime    = TimeManager::getTimeMeasure('compose');
+my $allComposeTime = TimeManager::getTimeMeasure('allCompose');
+my $writeTime      = TimeManager::getTimeMeasure('write');
+my $dbTime         = TimeManager::getTimeMeasure('db');
+$logger->log("Total time: $totalTime (read: $readTimesTime, compose: $composeTime, ".
+             "all compose: $allComposeTime, write: $writeTime, db: $dbTime)" );
 
 my $outResult;
 $outResult->{pic_filename} = $filename;
 $outResult->{kmz_filename} = $kmzFilename;
 $outResult->{map_filename} = $mapFilename;
 $outResult->{debug} = $logger->getLogs;
+
+
 print to_json( $outResult );
 
 ###############################################################################
